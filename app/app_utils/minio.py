@@ -1,8 +1,9 @@
 import io
 import os
-from minio import Minio
+
 
 import logging
+
 logging.basicConfig(level=logging.INFO)
 
 
@@ -16,12 +17,7 @@ def ensure_bucket_exists(minio_client, bucket_name):
         logging.info(f"Bucket '{bucket_name}' already exists.")
 
 
-def write_file_to_minio(
-    minio_client, 
-    bucket_name, 
-    file_name, 
-    data
-) -> None:
+def write_file_to_minio(minio_client, bucket_name, file_name, data) -> None:
     """
     Writes a file to MinIO.
 
@@ -40,15 +36,14 @@ def write_file_to_minio(
         data.seek(0)
 
     try:
-        minio_client.put_object(
-            bucket_name,
-            file_name,
-            data,
-            length=length
+        minio_client.put_object(bucket_name, file_name, data, length=length)
+        logging.info(
+            f"File '{file_name}' written to MinIO bucket '{bucket_name}' successfully."
         )
-        logging.info(f"File '{file_name}' written to MinIO bucket '{bucket_name}' successfully.")
     except Exception as e:
-        logging.error(f"Error writing file '{file_name}' to MinIO bucket '{bucket_name}': {str(e)}")
+        logging.error(
+            f"Error writing file '{file_name}' to MinIO bucket '{bucket_name}': {str(e)}"
+        )
         raise
 
 
@@ -70,8 +65,12 @@ def fetch_file_from_minio(
     logging.info(f"Fetching file '{file_name}' from MinIO bucket '{bucket_name}'...")
     try:
         minio_client.fget_object(bucket_name, file_name, local_file_path)
-        logging.info(f"File '{file_name}' fetched from MinIO bucket '{bucket_name}' and saved to '{local_file_path}' successfully.")
+        logging.info(
+            f"File '{file_name}' fetched from MinIO bucket '{bucket_name}' and saved to '{local_file_path}' successfully."
+        )
         return True
     except Exception as e:
-        logging.error(f"Error fetching file '{file_name}' from MinIO bucket '{bucket_name}': {str(e)}")
+        logging.error(
+            f"Error fetching file '{file_name}' from MinIO bucket '{bucket_name}': {str(e)}"
+        )
         return False

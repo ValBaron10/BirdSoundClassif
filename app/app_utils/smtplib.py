@@ -6,9 +6,11 @@ from tempfile import NamedTemporaryFile
 from app_utils.minio import fetch_file_from_minio
 
 import logging
+
 logging.basicConfig(level=logging.INFO)
 
-def send_email(email, json_minio_path, ticket_number, minio_client, minio_bucket):
+
+def send_email(email, json_minio_path, ticket_number, minio_client, minio_bucket) -> None:
     # SMTP configuration for MailHog
     smtp_server = "mailhog"
     smtp_port = 1025
@@ -19,10 +21,14 @@ def send_email(email, json_minio_path, ticket_number, minio_client, minio_bucket
         local_file_path = temp_file.name
 
         # Fetch the JSON file from MinIO and save it locally
-        success = fetch_file_from_minio(minio_client, minio_bucket, json_minio_path, local_file_path)
+        success = fetch_file_from_minio(
+            minio_client, minio_bucket, json_minio_path, local_file_path
+        )
 
         if not success:
-            logging.error(f"Failed to fetch JSON file '{json_minio_path}' from MinIO. Skipping email sending.")
+            logging.error(
+                f"Failed to fetch JSON file '{json_minio_path}' from MinIO. Skipping email sending."
+            )
             return
 
         # Read the JSON file contents
@@ -41,7 +47,9 @@ def send_email(email, json_minio_path, ticket_number, minio_client, minio_bucket
 
     # Attach the JSON file
     json_file = MIMEApplication(json_data, _subtype="json")
-    json_file.add_header("Content-Disposition", "attachment", filename="classification_results.json")
+    json_file.add_header(
+        "Content-Disposition", "attachment", filename="classification_results.json"
+    )
     message.attach(json_file)
 
     # Send the email

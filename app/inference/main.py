@@ -1,4 +1,3 @@
-
 import os
 import json
 from minio import Minio
@@ -10,15 +9,18 @@ from model_serve.model_serve import ModelServer
 
 
 import logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s',
-                    handlers=[logging.StreamHandler()])
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()],
+)
 logger = logging.getLogger(__name__)
 
 
 #################### CONFIG ####################
-WEIGHTS_PATH = 'models/detr_noneg_100q_bs20_r50dc5'
-TEST_FILE_PATH = 'inference/Turdus_merlula.wav'
+WEIGHTS_PATH = "models/detr_noneg_100q_bs20_r50dc5"
+TEST_FILE_PATH = "inference/Turdus_merlula.wav"
 
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST")
 RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT", "5672"))
@@ -35,17 +37,20 @@ minio_client = Minio(
     MINIO_ENDPOINT,
     access_key=MINIO_ACCESS_KEY,
     secret_key=MINIO_SECRET_KEY,
-    secure=False
+    secure=False,
 )
+
 
 #################### QUEUE ####################
 def callback(body) -> None:
     message = json.loads(body.decode())
-    minio_path = message['minio_path']
-    email = message['email']
-    ticket_number = message['ticket_number']
-    
-    logger.info(f"Received message from RabbitMQ: MinIO path={minio_path}, Email={email}, Ticket number={ticket_number}")
+    minio_path = message["minio_path"]
+    email = message["email"]
+    ticket_number = message["ticket_number"]
+
+    logger.info(
+        f"Received message from RabbitMQ: MinIO path={minio_path}, Email={email}, Ticket number={ticket_number}"
+    )
     run_inference_pipeline(minio_path, email, ticket_number)
 
 
@@ -67,26 +72,27 @@ def run_inference_pipeline(minio_path, email, ticket_number) -> None:
     output = inference.get_classification(local_file_path)
     logger.info(f"Classification output: {output}")
 
-    json_file_name = os.path.splitext(file_name)[0] + '.json'
-    json_output = list(output.values())[0]  # Extract the JSON output from the dictionary
+    json_file_name = os.path.splitext(file_name)[0] + ".json"
+    json_output = list(output.values())[
+        0
+    ]  # Extract the JSON output from the dictionary
 
     # Write the JSON output to MinIO using the helper function
-    json_data = json.dumps(json_output).encode('utf-8')
+    json_data = json.dumps(json_output).encode("utf-8")
     write_file_to_minio(minio_client, MINIO_BUCKET, json_file_name, json_data)
 
     # Publish the message containing the MinIO paths, email, and ticket number on the feedback channel
     message = {
-        'wav_minio_path': f'{MINIO_BUCKET}/{file_name}',
-        'json_minio_path': f'{json_file_name}',
-        'email': email,
-        'ticket_number': ticket_number
+        "wav_minio_path": f"{MINIO_BUCKET}/{file_name}",
+        "json_minio_path": f"{json_file_name}",
+        "email": email,
+        "ticket_number": ticket_number,
     }
     publish_message(rabbitmq_channel, FEEDBACK_QUEUE, message)
 
 
-
 #################### MAIN LOOP ####################
-if __name__ == '__main__':
+if __name__ == "__main__":
     rabbitmq_connection = get_rabbit_connection(RABBITMQ_HOST, RABBITMQ_PORT)
     rabbitmq_channel = rabbitmq_connection.channel()
     rabbitmq_channel.queue_declare(queue=FORWARDING_QUEUE)
