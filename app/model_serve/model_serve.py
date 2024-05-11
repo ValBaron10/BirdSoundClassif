@@ -50,7 +50,6 @@ class ModelServer:
             self.model, self.config, file_path, return_spectrogram=return_spectrogram
         )
         logger.info(f"[fp]: \n{fp}\n\n")
-        logger.info(f"[outputs]: \n{outputs}\n\n")
         self.detection_ready = True
 
         return fp, outputs, spectrogram

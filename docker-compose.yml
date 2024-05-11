@@ -19,6 +19,7 @@ x-common-env: &common-env
     - MINIO_ROOT_USER=${MINIO_ROOT_USER}
     - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
 
+    - MH_LOG_LEVEL=error
 
 services:
 #============ [MAIN SERVICES] ============#
@@ -84,6 +85,7 @@ services:
 
   mailhog:
     # Mailhog: Email testing tool for development
+    <<: *common-env
     image: mailhog/mailhog
     ports:
       - "1025:1025"  # SMTP port

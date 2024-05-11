@@ -6,7 +6,6 @@ from tempfile import NamedTemporaryFile
 from app_utils.minio import fetch_file_from_minio
 
 import logging
-
 logging.basicConfig(level=logging.INFO)
 
 
@@ -53,5 +52,9 @@ def send_email(email, json_minio_path, ticket_number, minio_client, minio_bucket
     message.attach(json_file)
 
     # Send the email
-    with smtplib.SMTP(smtp_server, smtp_port) as server:
-        server.send_message(message)
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.send_message(message)
+        logging.info(f"\n\nEmail sent successfully to {email} for ticket #{ticket_number}\n\n")
+    except Exception as e:
+        logging.error(f"\n\nFailed to send email to {email} for ticket #{ticket_number}. Error: {str(e)}\n\n")

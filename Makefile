@@ -1,24 +1,31 @@
 .PHONY: build-base build-api build-inference build-all run-api run-inference run-all
-#===================================#
-# 		BUILD DOCKER IMAGES			#
-#===================================#
-build-base:
-	cd docker/base && ./build.sh
 
-build-api:
-	cd docker/api && ./build.sh
-
-build-inference:
-	cd docker/inference && ./build.sh
-
-build-all: build-base build-api build-inference
-
-
-#===================================#
-# 		PUSH DOCKER IMAGES			#
-#===================================#
 # Default dockerhub account
 DOCKER_ACCOUNT ?= matthieujln
+
+#===================================#
+# 		BUILD DOCKER IMAGES			
+#===================================#
+build-base:
+	cd docker/base && ./build.sh $(DOCKER_ACCOUNT)
+
+build-api:
+	cd docker/api && ./build.sh $(DOCKER_ACCOUNT)
+
+build-inference:
+	cd docker/inference && ./build.sh $(DOCKER_ACCOUNT)
+
+build-all: 
+	$(MAKE) build-base
+	$(MAKE) build-api
+	$(MAKE) build-inference
+
+
+
+#===================================#
+# 		PUSH DOCKER IMAGES			
+#===================================#
+
 
 push-base:
 	cd docker/base && ./push.sh $(DOCKER_ACCOUNT)
@@ -37,7 +44,7 @@ push-all:
 
 
 #===================================#
-# 			DOCKER COMPOSE			#
+# 			DOCKER COMPOSE			
 #===================================#
 run-api:
 	docker compose up api
@@ -56,7 +63,7 @@ teardown:
 
 
 #===================================#
-# 			DEV COMMANDS			#
+# 			DEV COMMANDS			
 #===================================#
 upload-dev:
 	curl -X 'GET' \

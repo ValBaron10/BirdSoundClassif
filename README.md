@@ -43,10 +43,6 @@ cd BirdSoundClassif
 ```bash
 make build-all
 ```
-- Optional: push built images into your dockerhub repository `bird-sound-classif` (repo must be created beforehand)
-```bash
-make push-all DOCKER_ACCOUNT=yourdockerhubaccount
-```
 
 - Running the build scripts manually:
 ```bash
@@ -61,6 +57,11 @@ cd ../api # /docker/api
 
 # Back to repository root
 cd ../..
+```
+
+- Optional: push built images into your dockerhub repository `bird-sound-classif` (repo must be created beforehand)
+```bash
+make push-all DOCKER_ACCOUNT=yourdockerhubaccount
 ```
 
 ### Configure secret variables
@@ -110,9 +111,9 @@ Congratulations! Your request is making a round trip inside the service, let's s
 When the upload arrives, the wav files is stored in an S3 bucket
 
 - In your browser, go to `localhost:9001`, default user / password are `miniouser` / `miniouser123`
-  - Change these values in the `.env` file if needed
+  - Change these values in the `.env` file if needed  
 ![Alt Text](docs/readme/minio.png)
-- Click on the `mediae` folder, find the `wav` file and the `json` file containing the results! 
+- Click on the `mediae` folder, find the `wav` file and the `json` file containing the results!   
 ![Alt Text](docs/readme/minio2.png)
 
 
@@ -147,6 +148,59 @@ docker compose down -v
 make teardown
 ```
 
+## **Example of healthy logs**
+
+Api container startup
+```bash
+...
+api-1        | INFO:pika.adapters.blocking_connection:Created channel=1
+api-1        | INFO:root:Declaring queue: api_to_inference
+api-1        | INFO:root:Declaring queue: inference_to_api
+api-1        | INFO:     Started server process [11]
+api-1        | INFO:     Waiting for application startup.
+api-1        | INFO:     Application startup complete.
+
+```
+Inference container startup
+```bash
+inference-1  | INFO:root:RabbitMQ connection established.
+inference-1  | INFO:pika.adapters.blocking_connection:Created channel=1
+inference-1  | INFO:root:Declaring queue: inference_to_api
+inference-1  | INFO:__main__:Waiting for messages from queue: api_to_inference
+```
+
+Upload -> inference pipeline
+```bash
+...
+api-1        | INFO:root:File 'Turdus_merlula.wav' written to MinIO bucket 'mediae' successfully.
+...
+api-1        | INFO:root:Published message: {'minio_path': 'mediae/Turdus_merlula.wav', 'email': 'user@example.com', 'ticket_number': 'c0ea90'}
+api-1        | INFO:     172.24.0.1:34770 - "GET /upload-dev?email=user%40example.com HTTP/1.1" 200 OK
+inference-1  | INFO:__main__:Received message from RabbitMQ: MinIO path=mediae/Turdus_merlula.wav, Email=user@example.com, Ticket number=c0ea90
+inference-1  | INFO:__main__:WAV file downloaded from MinIO: Turdus_merlula.wav
+inference-1  | INFO:model_serve.model_serve:Weights path: {self.weights_path}
+inference-1  | INFO:model_serve.model_serve:Reversed birds dict: {self.reverse_bird_dict}
+inference-1  | INFO:model_serve.model_serve:Loading model...
+inference-1  | INFO:model_serve.model_serve:Model loaded successfully
+inference-1  | INFO:model_serve.model_serve:Starting run_detection on Turdus_merlula.wav...
+100%|██████████| 1/1 [00:00<00:00,  2.15it/s]
+inference-1  | INFO:model_serve.model_serve:[fp]: 
+inference-1  | <src.features.prepare_dataset.File_Processor object at 0x7385bc1dfe20>
+inference-1  | 
+inference-1  | 
+inference-1  | INFO:model_serve.model_serve:[output]: 
+inference-1  | {'Turdus merula': {'bbox_coord': [[552, 182, 629, 258]], 'scores': [0.9958606362342834]}}
+...
+inference-1  | INFO:root:File 'Turdus_merlula.json' written to MinIO bucket 'mediae' successfully.
+inference-1  | INFO:root:Preparing to publish message to queue: inference_to_api
+inference-1  | INFO:root:Published message: {'wav_minio_path': 'mediae/Turdus_merlula.wav', 'json_minio_path': 'Turdus_merlula.json', 'email': 'user@example.com', 'ticket_number': 'c0ea90'}
+api-1        | INFO:root:Fetching file 'Turdus_merlula.json' from MinIO bucket 'mediae'...
+api-1        | INFO:root:File 'Turdus_merlula.json' fetched from MinIO bucket 'mediae' and saved to '/tmp/tmpukc2ftj7' successfully.
+...
+api-1        | 
+api-1        | Email sent successfully to user@example.com for ticket #0f08f8
+api-1        | 
+```
 
 --------
 ## **PREVIOUS CHECKPOINTS**  
