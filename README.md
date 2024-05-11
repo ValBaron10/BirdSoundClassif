@@ -1,38 +1,256 @@
-# Code for bird call detection model based on Detr
+___
+# **Bird Sound Classification: API Integration**
+___
+#TODO add a brief description
 
-![image info](docs/assets/demo_results/emb_ort.png)
+![Alt Text](docs/readme/ContainerStructureBase.png)
 
-### Prerequisit
-- Install python version 3.10
 
-### Install
-Create virtual environment named .venv with conda (or venv) and activate it.
-Here is how to do with conda.
+## **Table of Contents**
+
+- [Introduction](#introduction)
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Contributing](#contributing)
+- [License](#license)
+
+
+## **Introduction**
+
+Allows users to upload WAV files containing bird sounds and receive classification results via email. 
+Consists of two main services: an API service for handling user requests and an inference service for performing the actual classification.
+
+## **Features**
+
+- API Service: Handles user requests, sends WAV files to the inference service via RabbitMQ, and sends email notifications to users.
+- Inference Service: Receives WAV files from the API service, performs bird sound classification using a pre-trained model, and sends the results back to the API service via RabbitMQ.
+- RabbitMQ: Enables asynchronous communication between the API and inference services.
+- MinIO: Provides lightweight file storage for WAV files and classification results.
+- Mailhog: Facilitates email testing during development.
+
+
+## **Installation**
+
+### Clone repository
+```bash
+git clone https://github.com/ValBaron10/BirdSoundClassif.git
+cd BirdSoundClassif
+```
+
+### Build Docker images
+- Using the `Makefile`:
+```bash
+make build-all
+```
+- Optional: push built images into your dockerhub repository `bird-sound-classif` (repo must be created beforehand)
+```bash
+make push-all DOCKER_ACCOUNT=yourdockerhubaccount
+```
+
+- Running the build scripts manually:
+```bash
+cd docker/base
+./build.sh
+
+cd ../inference # /docker/inference
+./build.sh
+
+cd ../api # /docker/api
+./build.sh
+
+# Back to repository root
+cd ../..
+```
+
+### Configure secret variables
+
+Rename `.env.example` file into `.env` to make secrets available to the docker compose service
+
+
+## **Usage**
+
+### Launch services
+
+```bash
+docker compose up
+# Or
+make run-all
+```
+Let this terminal process run and watch for logs in case of dysfunctionments
+Open a new terminal to run the next commands
+
+### Launch upload functions
+
+#### `/upload-dev`
+- From the browser: Go to `localhost:8001/docs`, click on `upload-dev` endpoint and give an email address
+- From the `Makefile`: in the terminal, type `make upload-dev`
+- From a `curl` command: in the terminal, type:
+```bash
+curl -X 'GET' \
+  'http://localhost:8001/upload-dev?email=user%40example.com' \
+  -H 'accept: application/json'
+```
+
+#### `/upload` #TODO
+- From the browser: Go to `localhost:8001/docs`, click on `upload-dev` endpoint, select the file to upload and give an email address
+- From the terminal:
+```bash
+curl -X 'POST' \
+  'http://localhost:8001/upload-dev?email=user%40example.com' \
+  #TODO \
+  -H 'accept: application/json'
+```
+
+Congratulations! Your request is making a round trip inside the service, let's see what happens...
+
+### Access service UIs
+
+#### S3 Storage
+When the upload arrives, the wav files is stored in an S3 bucket
+
+- In your browser, go to `localhost:9001`, default user / password are `miniouser` / `miniouser123`
+  - Change these values in the `.env` file if needed
+![Alt Text](docs/readme/minio.png)
+- Click on the `mediae` folder, find the `wav` file and the `json` file containing the results! 
+![Alt Text](docs/readme/minio2.png)
+
+
+#### Mailhog (developper mail client) 
+When the api container gets the feedback messgae from the inference container, it sends an email to the user's email address
+
+- In your browser, go to `localhost:8025`
+- Click on the new message to see the mail body
+- Click on the `MIME` tab an click on the `download` `application/json` button to download the classification results `json` attachement! 
+![Alt Text](docs/readme/mailhog.png)
+
+#### RabbitMQ Management 
+A web-based interface for monitoring and managing RabbitMQ message queues and their traffic.
+
+- In your browser, go to `localhost:15672`
+- Go to the `Queues` tab: find info about message traffic for both forwarding and feedback queues
+- You can inspect the message bodies with the button `Get Message(s)`
+
+
+### Shutdown / teardown services
+Shutdown
+```bash
+docker compose down
+# Or
+make shutdown
+```
+
+Teardown (caution volumes are destroyed, use in dev mode only)
+```bash
+docker compose down -v
+# Or
+make teardown
+```
+
+
+--------
+## **PREVIOUS CHECKPOINTS**  
+___
+
+
+### Remarques
+
+#### Structure des dossiers
+- Les différents services ont chacun leur sous-dossier dans `app/`:
+  - `inference/`
+  -  `api/`
+  -  ...
+- Les sous dossiers de `docker/` reprennent cette même structure
+
+
+#### Le dossier docker
+- L'image **base** sert de base d'image pour construire les autres, elle comprend python et notre package custom **src**
+- Les autres images ont chacune leur propre jeu de dépendances (`requirements.txt`) pour éviter des images inutilement lourdes:
+  - **Api**: fastapi, requests etc
+  - **Inference**: torch, ffmpeg, librosa etc
+- Dans chaque dossier d'image, un script `build.sh` permet de construire l'image en allant chercher le contenu correspondant dans `app/`
+- Le tag des images reprend mes identifiants Dockerhub: `username/repo_name:local_folder_name`, remplacer ce tag par vos propres identifiants dans les fichiers `build.sh` si nécessaire
+- Si vous voulez pull un image sur dockerhub, les scripts `pull.sh` doivent être modifiés du coup
+
+
+### Installation
+
+```bash
+cd docker/base
+./build.sh
+
+cd docker/inference
+./build.sh
 
 ```
-conda create .venv
-conda activate .venv
-pip install -r requirements.txt
+
+### Lancement du container
+Lancement du container en mode bash
+
+```bash
+# Si necessaire:
+cd docker/inference
+
+# Puis:
+./start_bash.sh
+
 ```
 
-and with venv
+Dans le container:
+```bash
+python inference/main.py
+
+
+#===================
+# Commandes de debug
+# Check des libraries python:
+pip freeze | cat
+
 
 ```
-python -m venv .venv
-.\.venv\Scripts\activate
-pip install -r requirements.txt
+
+
+### 2ème essai, l'inférence tourne correctement
+Modifs nécessaires pour le cpu:
+- Ajout d'une fonction `load_weights_cpu()` dans `src/models/detr`
+- Ajout d'un script spécifique au cpu `run_detection_cpu.py`
+
+```bash
+root@0a0df020b2e4:/app# python inference/main.py 
+...
+2024-05-08 10:28:03,038 - INFO - [output]: 
+{'Turdus merula': {'bbox_coord': [[552, 182, 629, 258]], 'scores': [0.9958606362342834]}}
 ```
 
-**Do not forget to install ffmpeg and to add it to your path as described [here](https://phoenixnap.com/kb/ffmpeg-windows)**
 
-### Download model weights
-You need to manually download [here](https://drive.google.com/drive/folders/1gMoLpgnpGw2c15mVVyN6W6e4FDHCD24n?usp=sharing) the model weights and the pre-trained model contained in the .zip called `models.zip` and put the content in a folder called `model` at the root of the project.
+### Après un premier essai...
+On retourne au bon vieux message d'erreur dû aux problèmes de cpu... 
+Il semble que l'on doit repackager un 2ème `src` avec certaines parties du code réécrites pour le cpu
 
-### Download example image to launch the inference notebook
-Donwload the .zip called `data.zip` [here](https://drive.google.com/drive/folders/1gMoLpgnpGw2c15mVVyN6W6e4FDHCD24n?usp=sharing) and put its content in a folder called `data` at the root of the project.
-
-### Run inference notebook
-Open `notebooks/1.0_LB_exemple-inference.ipynb` and run each cell one after the other.
-
+```bash
+root@2ca153072c27:/app# python inference/main.py 
+Traceback (most recent call last):
+  File "/app/inference/main.py", line 10, in <module>
+    model, config = load_model(mod_p)
+  File "/app/src/models/run_detection.py", line 84, in load_model
+    model = load_weights(config, model, path=os.path.join(mod_p, 'model_chkpt_last.pt'), train=False).to(config.device)
+  File "/app/src/models/detr.py", line 355, in load_weights
+    state_dict = torch.load(path)
+  File "/usr/local/lib/python3.10/dist-packages/torch/serialization.py", line 1026, in load
+    return _load(opened_zipfile,
+  File "/usr/local/lib/python3.10/dist-packages/torch/serialization.py", line 1438, in _load
+    result = unpickler.load()
+  File "/usr/local/lib/python3.10/dist-packages/torch/serialization.py", line 1408, in persistent_load
+    typed_storage = load_tensor(dtype, nbytes, key, _maybe_decode_ascii(location))
+  File "/usr/local/lib/python3.10/dist-packages/torch/serialization.py", line 1382, in load_tensor
+    wrap_storage=restore_location(storage, location),
+  File "/usr/local/lib/python3.10/dist-packages/torch/serialization.py", line 391, in default_restore_location
+    result = fn(storage, location)
+  File "/usr/local/lib/python3.10/dist-packages/torch/serialization.py", line 266, in _cuda_deserialize
+    device = validate_cuda_device(location)
+  File "/usr/local/lib/python3.10/dist-packages/torch/serialization.py", line 250, in validate_cuda_device
+    raise RuntimeError('Attempting to deserialize object on a CUDA '
+RuntimeError: Attempting to deserialize object on a CUDA device but torch.cuda.is_available() is False. If you are running on a CPU-only machine, please use torch.load with map_location=torch.device('cpu') to map your storages to the CPU.
+```
 
 
