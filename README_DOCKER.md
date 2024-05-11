@@ -1,3 +1,156 @@
+___
+# **Bird Sound Classification: API Integration**
+___
+#TODO add a brief description
+
+![Alt Text](docs/readme/ContainerStructureBase.png)
+
+
+## **Table of Contents**
+
+- [Introduction](#introduction)
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Contributing](#contributing)
+- [License](#license)
+
+
+## **Introduction**
+
+Allows users to upload WAV files containing bird sounds and receive classification results via email. 
+Consists of two main services: an API service for handling user requests and an inference service for performing the actual classification.
+
+## **Features**
+
+- API Service: Handles user requests, sends WAV files to the inference service via RabbitMQ, and sends email notifications to users.
+- Inference Service: Receives WAV files from the API service, performs bird sound classification using a pre-trained model, and sends the results back to the API service via RabbitMQ.
+- RabbitMQ: Enables asynchronous communication between the API and inference services.
+- MinIO: Provides lightweight file storage for WAV files and classification results.
+- Mailhog: Facilitates email testing during development.
+
+
+## **Installation**
+
+### Clone repository
+```bash
+git clone https://github.com/ValBaron10/BirdSoundClassif.git
+cd BirdSoundClassif
+```
+
+### Build Docker images
+- Using the `Makefile`:
+```bash
+make build-all
+```
+- Optional: push built images into your dockerhub repository `bird-sound-classif` (repo must be created beforehand)
+```bash
+make push-all DOCKER_ACCOUNT=yourdockerhubaccount
+```
+
+- Running the build scripts manually:
+```bash
+cd docker/base
+./build.sh
+
+cd ../inference # /docker/inference
+./build.sh
+
+cd ../api # /docker/api
+./build.sh
+
+# Back to repository root
+cd ../..
+```
+
+### Configure secret variables
+
+Rename `.env.example` file into `.env` to make secrets available to the docker compose service
+
+
+## **Usage**
+
+### Launch services
+
+```bash
+docker compose up
+# Or
+make run-all
+```
+Let this terminal process run and watch for logs in case of dysfunctionments
+Open a new terminal to run the next commands
+
+### Launch upload functions
+
+#### `/upload-dev`
+- From the browser: Go to `localhost:8001/docs`, click on `upload-dev` endpoint and give an email address
+- From the `Makefile`: in the terminal, type `make upload-dev`
+- From a `curl` command: in the terminal, type:
+```bash
+curl -X 'GET' \
+  'http://localhost:8001/upload-dev?email=user%40example.com' \
+  -H 'accept: application/json'
+```
+
+#### `/upload` #TODO
+- From the browser: Go to `localhost:8001/docs`, click on `upload-dev` endpoint, select the file to upload and give an email address
+- From the terminal:
+```bash
+curl -X 'POST' \
+  'http://localhost:8001/upload-dev?email=user%40example.com' \
+  #TODO \
+  -H 'accept: application/json'
+```
+
+Congratulations! Your request is making a round trip inside the service, let's see what happens...
+
+### Access service UIs
+
+#### S3 Storage
+When the upload arrives, the wav files is stored in an S3 bucket
+
+- In your browser, go to `localhost:9001`, default user / password are `miniouser` / `miniouser123`
+  - Change these values in the `.env` file if needed
+![Alt Text](docs/readme/minio.png)
+- Click on the `mediae` folder, find the `wav` file and the `json` file containing the results! 
+![Alt Text](docs/readme/minio2.png)
+
+
+#### Mailhog (developper mail client) 
+When the api container gets the feedback messgae from the inference container, it sends an email to the user's email address
+
+- In your browser, go to `localhost:8025`
+- Click on the new message to see the mail body
+- Click on the `MIME` tab an click on the `download` `application/json` button to download the classification results `json` attachement! 
+![Alt Text](docs/readme/mailhog.png)
+
+#### RabbitMQ Management 
+A web-based interface for monitoring and managing RabbitMQ message queues and their traffic.
+
+- In your browser, go to `localhost:15672`
+- Go to the `Queues` tab: find info about message traffic for both forwarding and feedback queues
+- You can inspect the message bodies with the button `Get Message(s)`
+
+
+### Shutdown / teardown services
+Shutdown
+```bash
+docker compose down
+# Or
+make shutdown
+```
+
+Teardown (caution volumes are destroyed, use in dev mode only)
+```bash
+docker compose down -v
+# Or
+make teardown
+```
+
+
+--------
+## **PREVIOUS CHECKPOINTS**  
+___
 
 
 ### Remarques

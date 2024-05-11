@@ -1,7 +1,10 @@
+# Ignore env file
+.env
+
 # Ignore the data folder
 /data/
 src.egg-info/
-temp/**
+
 
 # Old Ignore (updated)
 /models/
@@ -15,3 +18,7 @@ container.def
 .venv
 .vscode
 .ipynb_checkpoints
+
+
+
+temp/**
