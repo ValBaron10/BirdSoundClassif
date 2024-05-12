@@ -4,7 +4,7 @@
 DOCKER_ACCOUNT ?= matthieujln
 
 #===================================#
-# 		BUILD DOCKER IMAGES			
+#       BUILD DOCKER IMAGES			
 #===================================#
 build-base:
 	cd docker/base && ./build.sh $(DOCKER_ACCOUNT)
@@ -21,12 +21,9 @@ build-all:
 	$(MAKE) build-inference
 
 
-
 #===================================#
-# 		PUSH DOCKER IMAGES			
+#        PUSH DOCKER IMAGES
 #===================================#
-
-
 push-base:
 	cd docker/base && ./push.sh $(DOCKER_ACCOUNT)
 
@@ -42,18 +39,17 @@ push-all:
 	$(MAKE) push-inference
 
 
-
 #===================================#
-# 			DOCKER COMPOSE			
+#       DOCKER COMPOSE			
 #===================================#
 run-api:
-	docker compose up api
+	DOCKERHUB_USERNAME=$(DOCKER_ACCOUNT) docker compose up api
 
 run-inference:
-	docker compose up inference
+	DOCKERHUB_USERNAME=$(DOCKER_ACCOUNT) docker compose up inference
 
 run-all:
-	docker compose up
+	DOCKERHUB_USERNAME=$(DOCKER_ACCOUNT) docker compose up
 
 shutdown:
 	docker compose down
@@ -63,7 +59,7 @@ teardown:
 
 
 #===================================#
-# 			DEV COMMANDS			
+#       DEV COMMANDS			
 #===================================#
 upload-dev:
 	curl -X 'GET' \

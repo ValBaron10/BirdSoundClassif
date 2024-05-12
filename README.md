@@ -1,7 +1,7 @@
 ___
 # **Bird Sound Classification: API Integration**
 ___
-#TODO add a brief description
+#TODO add a brief description  
 
 ![Alt Text](docs/readme/ContainerStructureBase.png)
 
@@ -11,9 +11,7 @@ ___
 - [Introduction](#introduction)
 - [Features](#features)
 - [Installation](#installation)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
+- [Example of healthy logs](#example-of-healthy-logs)
 
 
 ## **Introduction**
@@ -41,19 +39,25 @@ cd BirdSoundClassif
 ### Build Docker images
 - Using the `Makefile`:
 ```bash
+# WITH DEFAULT IMAGE TAG
 make build-all
+
+# TAGGING IMAGES WITH YOUR OWN DOCKERHUB ACCOUNT:
+make build-all DOCKER_ACCOUNT=yourusername
+
 ```
 
 - Running the build scripts manually:
 ```bash
+# BUILDING IMAGES WITH DEFAULT TAG
 cd docker/base
-./build.sh
+./build.sh matthieujln
 
 cd ../inference # /docker/inference
-./build.sh
+./build.sh matthieujln
 
 cd ../api # /docker/api
-./build.sh
+./build.sh matthieujln
 
 # Back to repository root
 cd ../..
@@ -64,28 +68,50 @@ cd ../..
 make push-all DOCKER_ACCOUNT=yourdockerhubaccount
 ```
 
-### Configure secret variables
+### Configure environment variables and secrets
 
 Rename `.env.example` file into `.env` to make secrets available to the docker compose service
 
+All environment variables are listed at the top of the `docker-compose.yml` under this section:
+```yaml
+x-common-env: &common-env
+  environment:
+  ...
+```
+
+They are linked to each container with this:
+```yaml
+    <<: *common-env
+```
 
 ## **Usage**
+
+**Api runs on port `8001`** 
 
 ### Launch services
 
 ```bash
 docker compose up
-# Or
+
+# OR
 make run-all
+
+# OR USING YOUR OWN IMAGE TAGS:
+make run-all DOCKER_ACCOUNT=yourusername
+
 ```
 Let this terminal process run and watch for logs in case of dysfunctionments
 Open a new terminal to run the next commands
 
-### Launch upload functions
+### Call REST Api upload functions
 
-#### `/upload-dev`
+#### GET `/upload-dev`
+A function that relies on a built-in wav file instead of a real upload.
 - From the browser: Go to `localhost:8001/docs`, click on `upload-dev` endpoint and give an email address
-- From the `Makefile`: in the terminal, type `make upload-dev`
+- Using the `Makefile`: 
+```bash
+make upload-dev
+```
 - From a `curl` command: in the terminal, type:
 ```bash
 curl -X 'GET' \
@@ -93,14 +119,20 @@ curl -X 'GET' \
   -H 'accept: application/json'
 ```
 
-#### `/upload` #TODO
-- From the browser: Go to `localhost:8001/docs`, click on `upload-dev` endpoint, select the file to upload and give an email address
+#### POST `/upload` 
+A function receiving a wav file from the user.
+- From the browser: Go to `localhost:8001/docs`, select on `upload` endpoint, select the file to upload and give an email address
 - From the terminal:
 ```bash
+# REPLACE `merle1` WITH YOUR OWN WAV FILE
 curl -X 'POST' \
-  'http://localhost:8001/upload-dev?email=user%40example.com' \
-  #TODO \
-  -H 'accept: application/json'
+  'http://localhost:8001/upload' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: multipart/form-data' \
+  -F 'file=@merle1.wav;type=audio/wav' \
+  -F 'email=user@example.com'
+
+#TODO explain how does the `@` get to point to a local file in a curl command 
 ```
 
 Congratulations! Your request is making a round trip inside the service, let's see what happens...
@@ -122,7 +154,7 @@ When the api container gets the feedback messgae from the inference container, i
 
 - In your browser, go to `localhost:8025`
 - Click on the new message to see the mail body
-- Click on the `MIME` tab an click on the `download` `application/json` button to download the classification results `json` attachement! 
+- Click on the `MIME` tab an click on the `download` `application/json` button to download the classification results `json` attachement!   
 ![Alt Text](docs/readme/mailhog.png)
 
 #### RabbitMQ Management 
@@ -137,21 +169,21 @@ A web-based interface for monitoring and managing RabbitMQ message queues and th
 Shutdown
 ```bash
 docker compose down
-# Or
+# OR
 make shutdown
 ```
 
-Teardown (caution volumes are destroyed, use in dev mode only)
+Teardown (caution: storage volumes are deleted, use in dev mode only)
 ```bash
 docker compose down -v
-# Or
+# OR
 make teardown
 ```
 
 ## **Example of healthy logs**
 
 Api container startup
-```bash
+```css
 ...
 api-1        | INFO:pika.adapters.blocking_connection:Created channel=1
 api-1        | INFO:root:Declaring queue: api_to_inference
@@ -162,15 +194,15 @@ api-1        | INFO:     Application startup complete.
 
 ```
 Inference container startup
-```bash
+```css
 inference-1  | INFO:root:RabbitMQ connection established.
 inference-1  | INFO:pika.adapters.blocking_connection:Created channel=1
 inference-1  | INFO:root:Declaring queue: inference_to_api
 inference-1  | INFO:__main__:Waiting for messages from queue: api_to_inference
 ```
 
-Upload -> inference pipeline
-```bash
+Upload -> inference pipeline -> email
+```css
 ...
 api-1        | INFO:root:File 'Turdus_merlula.wav' written to MinIO bucket 'mediae' successfully.
 ...
@@ -198,12 +230,14 @@ api-1        | INFO:root:Fetching file 'Turdus_merlula.json' from MinIO bucket '
 api-1        | INFO:root:File 'Turdus_merlula.json' fetched from MinIO bucket 'mediae' and saved to '/tmp/tmpukc2ftj7' successfully.
 ...
 api-1        | 
-api-1        | Email sent successfully to user@example.com for ticket #0f08f8
+api-1        | Email sent successfully to user@example.com for ticket #c0ea90
 api-1        | 
-```
+```   
+
+<br><br><br>  
 
 --------
-## **PREVIOUS CHECKPOINTS**  
+## **[DEPRECATED] PREVIOUS CHECKPOINTS**  
 ___
 
 
@@ -275,36 +309,3 @@ root@0a0df020b2e4:/app# python inference/main.py
 2024-05-08 10:28:03,038 - INFO - [output]: 
 {'Turdus merula': {'bbox_coord': [[552, 182, 629, 258]], 'scores': [0.9958606362342834]}}
 ```
-
-
-### Après un premier essai...
-On retourne au bon vieux message d'erreur dû aux problèmes de cpu... 
-Il semble que l'on doit repackager un 2ème `src` avec certaines parties du code réécrites pour le cpu
-
-```bash
-root@2ca153072c27:/app# python inference/main.py 
-Traceback (most recent call last):
-  File "/app/inference/main.py", line 10, in <module>
-    model, config = load_model(mod_p)
-  File "/app/src/models/run_detection.py", line 84, in load_model
-    model = load_weights(config, model, path=os.path.join(mod_p, 'model_chkpt_last.pt'), train=False).to(config.device)
-  File "/app/src/models/detr.py", line 355, in load_weights
-    state_dict = torch.load(path)
-  File "/usr/local/lib/python3.10/dist-packages/torch/serialization.py", line 1026, in load
-    return _load(opened_zipfile,
-  File "/usr/local/lib/python3.10/dist-packages/torch/serialization.py", line 1438, in _load
-    result = unpickler.load()
-  File "/usr/local/lib/python3.10/dist-packages/torch/serialization.py", line 1408, in persistent_load
-    typed_storage = load_tensor(dtype, nbytes, key, _maybe_decode_ascii(location))
-  File "/usr/local/lib/python3.10/dist-packages/torch/serialization.py", line 1382, in load_tensor
-    wrap_storage=restore_location(storage, location),
-  File "/usr/local/lib/python3.10/dist-packages/torch/serialization.py", line 391, in default_restore_location
-    result = fn(storage, location)
-  File "/usr/local/lib/python3.10/dist-packages/torch/serialization.py", line 266, in _cuda_deserialize
-    device = validate_cuda_device(location)
-  File "/usr/local/lib/python3.10/dist-packages/torch/serialization.py", line 250, in validate_cuda_device
-    raise RuntimeError('Attempting to deserialize object on a CUDA '
-RuntimeError: Attempting to deserialize object on a CUDA device but torch.cuda.is_available() is False. If you are running on a CPU-only machine, please use torch.load with map_location=torch.device('cpu') to map your storages to the CPU.
-```
-
-

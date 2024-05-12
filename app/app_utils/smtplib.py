@@ -9,7 +9,37 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 
-def send_email(email, json_minio_path, ticket_number, minio_client, minio_bucket) -> None:
+def send_email(
+    email, json_minio_path, ticket_number, minio_client, minio_bucket
+) -> None:
+    """
+    Sends an email with the classification results as an attachment.
+
+    The function fetches the JSON file containing the classification results from MinIO,
+    creates an email message with the JSON file as an attachment, and sends the email
+    using the specified SMTP server (MailHog).
+
+    Args:
+        email (str): The recipient's email address.
+        json_minio_path (str): The path to the JSON file in MinIO.
+        ticket_number (str): The ticket number associated with the classification request.
+        minio_client (Minio): The MinIO client instance.
+        minio_bucket (str): The name of the MinIO bucket where the JSON file is stored.
+
+    Returns:
+        None
+
+    Raises:
+        Exception: If an error occurs while sending the email.
+
+    Note:
+        The function uses MailHog as the SMTP server for sending emails. Make sure MailHog
+        is running and accessible at the specified SMTP server and port.
+
+        The function creates a temporary file to store the fetched JSON file locally before
+        attaching it to the email. The temporary file is automatically deleted when the
+        function exits.
+    """
     # SMTP configuration for MailHog
     smtp_server = "mailhog"
     smtp_port = 1025

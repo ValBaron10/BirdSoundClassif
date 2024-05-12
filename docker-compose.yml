@@ -3,6 +3,8 @@ version: "3.9"
 # Shared set of env variables (secret variables are fetched from `.env` file)
 x-common-env: &common-env
   environment:
+    - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME:-matthieujln}
+
     - RABBITMQ_HOST=rabbitmq
     - RABBITMQ_PORT=5672
     - RABBITMQ_QUEUE_API2INF=api_to_inference
@@ -25,7 +27,7 @@ services:
 #============ [MAIN SERVICES] ============#
   api:
     <<: *common-env
-    image: matthieujln/bird-sound-classif:api
+    image: ${DOCKERHUB_USERNAME}/bird-sound-classif:api
     ports:
       - "8001:8000"
     depends_on:
@@ -38,7 +40,7 @@ services:
 
   inference:
     <<: *common-env
-    image: matthieujln/bird-sound-classif:inference
+    image: ${DOCKERHUB_USERNAME}/bird-sound-classif:inference
     depends_on:
       - rabbitmq
       - minioserver
@@ -46,8 +48,6 @@ services:
       - internal
     command: sh -c "sleep 5 && python3 inference/main.py"
     restart: always
-
-
 
 #============ [BACKING SERVICES] ============#
   rabbitmq:

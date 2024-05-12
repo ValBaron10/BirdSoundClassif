@@ -1,13 +1,18 @@
 import io
 import os
 
-
 import logging
-
 logging.basicConfig(level=logging.INFO)
 
 
-def ensure_bucket_exists(minio_client, bucket_name):
+def ensure_bucket_exists(minio_client, bucket_name) -> None:
+    """
+    Ensures that the specified bucket exists in MinIO, creating it if necessary.
+
+    Args:
+        minio_client (Minio): MinIO client instance.
+        bucket_name (str): Name of the bucket to check or create.
+    """
     logging.info(f"Checking if bucket '{bucket_name}' exists...")
     if not minio_client.bucket_exists(bucket_name):
         logging.info(f"Bucket '{bucket_name}' does not exist. Creating bucket...")
