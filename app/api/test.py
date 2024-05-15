@@ -4,7 +4,7 @@ import requests
 class TestUploadAPI(unittest.TestCase):
     def test_valid_file(self):
         # URL de l'API
-        url = "http://127.0.0.1:8000/upload/"
+        url = "http://127.0.0.1:8001/upload/"
         
         # Chemin du fichier .wav à envoyer
         file_path = "Test\Turdus_merlula.wav"
