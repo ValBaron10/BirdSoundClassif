@@ -6,13 +6,10 @@ files, and getting the classification results.
 
 """
 
-import os
-import json
-import glob
+import logging
+
 from src.models.run_detection_cpu import load_model, run_detection
 from src.visualization.visu import merge_images, visualise_model_out
-
-import logging
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,7 +23,17 @@ TEST_FILE_PATH = "inference/Turdus_merlula.wav"
 
 
 class ModelServer:
+    """A class representing a model server for bird sound classification."""
+    
     def __init__(self, weights_path, bird_dict) -> None:
+        """Initialize the ModelServer instance.
+
+        Args:
+        ----
+            weights_path (str): The path to the weights for the model.
+            bird_dict (dict): A dictionary containing bird names and their corresponding IDs.
+            
+        """
         self.weights_path = weights_path
         logger.info("Weights path: {self.weights_path}")
 
@@ -42,12 +49,25 @@ class ModelServer:
         self.model_loaded = False
 
     def load(self) -> None:
+        """Load the model."""
         logger.info("Loading model...")
         self.model, self.config = load_model(self.weights_path)
         logger.info("Model loaded successfully")
         self.model_loaded = True
 
     def run_detection(self, file_path, return_spectrogram=False):
+        """Run detection on an audio file.
+
+        Args:
+        ----
+            file_path (str): The path to the audio file.
+            return_spectrogram (bool): Whether to return the spectrogram.
+
+        Returns:
+        -------
+            tuple: A tuple containing the file path, outputs, and spectrogram.
+
+        """
         spectrogram = None
 
         if not self.model_loaded:
@@ -63,6 +83,18 @@ class ModelServer:
         return fp, outputs, spectrogram
 
     def get_classification(self, file_path, return_spectrogram=False):
+        """Get classification results for an audio file.
+
+        Args:
+        ----
+            file_path (str): The path to the audio file.
+            return_spectrogram (bool): Whether to return the spectrogram.
+
+        Returns:
+        -------
+            dict: A dictionary containing classification results.
+
+        """
         fp, outputs, spectrogram = self.run_detection(file_path, return_spectrogram)
 
         class_bbox = merge_images(fp, outputs, self.config.num_classes)
@@ -82,5 +114,5 @@ class ModelServer:
         return output
 
 
-#TODO ensure bird name is given as output 
-#TODO unload model method
+# TODO ensure bird name is given as output
+# TODO unload model method
