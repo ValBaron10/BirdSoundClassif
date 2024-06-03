@@ -3,6 +3,12 @@
   "dockerFile": "Dockerfile",
   "context": "..",
   "workspaceFolder": "/workspace",
+  "build": {
+    "args": {
+      "USER_UID": "${localEnv:UID}",
+      "USER_GID": "${localEnv:GID}"
+    }
+  },
   "settings": {
     "terminal.integrated.shell.linux": "/bin/bash"
   },
@@ -10,17 +16,9 @@
     "ms-python.python",
     "ms-azuretools.vscode-docker"
   ],
-  "postCreateCommand": "pip install --upgrade pip && pip install --editable . && git config --global --add safe.directory /workspace",
-  "remoteEnv": {
-    "DOCKERHUB_USERNAME": "${localEnv:DOCKERHUB_USERNAME}",
-    "RABBITMQ_DEFAULT_USER": "${localEnv:RABBITMQ_DEFAULT_USER}",
-    "RABBITMQ_DEFAULT_PASSWORD": "${localEnv:RABBITMQ_DEFAULT_PASSWORD}",
-    "AWS_ACCESS_KEY_ID": "${localEnv:AWS_ACCESS_KEY_ID}",
-    "AWS_SECRET_ACCESS_KEY": "${localEnv:AWS_SECRET_ACCESS_KEY}",
-    "MINIO_ROOT_USER": "${localEnv:MINIO_ROOT_USER}",
-    "MINIO_ROOT_PASSWORD": "${localEnv:MINIO_ROOT_PASSWORD}"
-  },
+  "postCreateCommand": "pip install --upgrade pip && pip install --editable .",
   "mounts": [
-    "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+    "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
   ]
 }
