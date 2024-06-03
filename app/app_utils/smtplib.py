@@ -1,3 +1,12 @@
+"""Email Utility Module.
+
+This module provides a utility function for sending emails with classification results
+as attachments. It fetches the JSON file containing the classification results from
+MinIO, creates an email message with the JSON file as an attachment, and sends the email
+using the specified SMTP server (MailHog).
+
+"""
+
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart

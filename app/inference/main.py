@@ -1,3 +1,25 @@
+"""Inference Pipeline Module.
+
+This module implements the inference pipeline for bird sound classification.
+It listens for messages from a RabbitMQ queue, fetches the corresponding audio files from MinIO,
+performs inference using a pre-trained model, and publishes the results back to another RabbitMQ queue.
+
+The module relies on the following dependencies:
+- `app_utils.minio`: Provides utility functions for interacting with MinIO.
+- `app_utils.rabbitmq`: Provides utility functions for interacting with RabbitMQ.
+- `minio`: A library for interacting with MinIO object storage.
+- `model_serve.model_serve`: Provides the `ModelServer` class for loading and running the pre-trained model.
+- `src.models.bird_dict`: Provides a dictionary mapping bird species to their corresponding labels.
+
+Example usage:
+1. Set the required environment variables for RabbitMQ, MinIO, and model paths.
+2. Run the script: `python inference_pipeline.py`
+   The script will start listening for messages from the specified RabbitMQ queue and process them accordingly.
+
+Note: Make sure to have the necessary dependencies installed and the pre-trained model available before running the script.
+
+"""
+
 import os
 import json
 from minio import Minio

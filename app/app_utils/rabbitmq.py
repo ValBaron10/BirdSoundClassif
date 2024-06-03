@@ -1,3 +1,11 @@
+"""RabbitMQ Utility Module.
+
+This module provides utility functions for interacting with RabbitMQ message broker. It
+includes functions for connecting to RabbitMQ, publishing messages, consuming messages,
+and processing feedback messages.
+
+"""
+
 import time
 import json
 import pika

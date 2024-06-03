@@ -1,3 +1,30 @@
+"""API Module.
+
+This module implements the API endpoints for the bird sound classification application.
+It provides endpoints for uploading audio files, storing them in MinIO, and publishing messages
+to RabbitMQ queues for further processing. It also consumes feedback messages from a RabbitMQ
+queue and handles them accordingly.
+
+The module relies on the following dependencies:
+
+app_utils.minio: Provides utility functions for interacting with MinIO.
+app_utils.rabbitmq: Provides utility functions for interacting with RabbitMQ.
+fastapi: A web framework for building APIs with Python.
+minio: A library for interacting with MinIO object storage.
+Example usage:
+
+Set the required environment variables for RabbitMQ, MinIO, and other configurations.
+Run the API server: uvicorn app.main:app --reload
+Access the API endpoints using a web browser or an API client.
+Available endpoints:
+
+/healthcheck: Returns the health status of the application.
+/upload-dev: Simulates the upload of a default audio file and publishes a message to RabbitMQ.
+/upload: Allows users to upload an audio file and publishes a message to RabbitMQ.
+Note: Make sure to have the necessary dependencies installed and the required environment variables set before running the application.
+
+"""
+
 import os
 import uuid
 import asyncio

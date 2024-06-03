@@ -1,3 +1,11 @@
+"""Model Server Module.
+
+This module provides the ModelServer class for loading and running the bird sound
+detection model. It includes methods for loading the model, running detection on audio
+files, and getting the classification results.
+
+"""
+
 import os
 import json
 import glob
@@ -72,3 +80,7 @@ class ModelServer:
             visualise_model_out(output, fp, spectrogram, self.reverse_bird_dict)
             # TODO: enregistrer le spectrogram
         return output
+
+
+#TODO ensure bird name is given as output 
+#TODO unload model method
