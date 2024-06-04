@@ -67,6 +67,7 @@ minio_client = None
 rabbitmq_connection = None
 rabbitmq_channel = None
 
+
 def initialize_clients():
     global minio_client, rabbitmq_connection, rabbitmq_channel
 
@@ -92,6 +93,7 @@ def initialize_clients():
     #################### FEEDBACK QUEUE ####################
     logging.info(f"Declaring queue: {FEEDBACK_QUEUE}")
     rabbitmq_channel.queue_declare(queue=FEEDBACK_QUEUE)
+
 
 @app.on_event("startup")
 async def startup_event() -> None:

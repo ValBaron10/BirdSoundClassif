@@ -17,15 +17,15 @@ def wait_for_stable_status(container, stable_duration=3, interval=1):
             stable_count += 1
         else:
             stable_count = 0
-            
+
         if stable_count >= stable_duration / interval:
             return True
-        
+
         time.sleep(interval)
-    
+
     return False
-    
-    
+
+
 def start_database_container():
     client = python_on_whales.client.from_env()
-    scripts_dir = os.path.abspath('')
+    scripts_dir = os.path.abspath("")

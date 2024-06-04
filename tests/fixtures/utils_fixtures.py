@@ -1,12 +1,13 @@
-import os
+from unittest.mock import MagicMock, patch
+
 import pytest
-from minio import Minio
-from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
+
 from app.api.main import app  # import your FastAPI instance
 
+
 @pytest.fixture(scope="function")
-def set_env_var(monkeypatch):
+def set_env_var(monkeypatch, smtpd):
     env_vars = {
         "MINIO_ENDPOINT": "http://minio-endpoint.com",
         "AWS_ACCESS_KEY_ID": "minio-access-key",
@@ -16,10 +17,13 @@ def set_env_var(monkeypatch):
         "RABBITMQ_PORT": "5672",
         "RABBITMQ_QUEUE_API2INF": "api-to-inf-queue",
         "RABBITMQ_QUEUE_INF2API": "inf-to-api-queue",
+        "SMTP_SERVER": smtpd.hostname,
+        "SMTP_PORT": str(smtpd.port),
+        "SENDER_EMAIL": "sender@example.com",
     }
     for k, v in env_vars.items():
         monkeypatch.setenv(k, v)
-    yield
+    return
 
 @pytest.fixture()
 def test_app(set_env_var):  # Add set_env_var as a dependency
@@ -34,6 +38,29 @@ def mock_minio_client():
 def mock_rabbitmq_channel():
     with patch("app.api.main.rabbitmq_channel") as mock:
         yield mock
+
+@pytest.fixture()
+def test_app(set_env_var):  # Add set_env_var as a dependency
+    return TestClient(app)
+
+
+@pytest.fixture()
+def mock_minio_client():
+    with patch("app.api.main.minio_client") as mock:
+        yield mock
+
+
+@pytest.fixture()
+def mock_rabbitmq_channel():
+    with patch("app.api.main.rabbitmq_channel") as mock:
+        yield mock
+
+
+@pytest.fixture
+def smtp_mock():
+    with patch("smtplib.SMTP", new_callable=MagicMock) as mock_smtp:
+        yield mock_smtp
+
 
 """
 @pytest.fixture()

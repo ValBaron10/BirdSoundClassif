@@ -1,9 +1,7 @@
 import asyncio
-import itertools
 import json
 from unittest.mock import Mock, patch
 
-import pika
 import pytest
 from app_utils.rabbitmq import (
     connect_to_rabbitmq,
@@ -23,24 +21,27 @@ def rabbit_connection():
         mock_connection.return_value = mock_conn
         yield mock_conn
 
+
 @pytest.fixture()
 def rabbit_channel(rabbit_connection):
     mock_channel = Mock()
     rabbit_connection.channel.return_value = mock_channel
-    yield mock_channel
-    
+    return mock_channel
+
+
 @pytest.fixture()
 def minio_client():
     mock_minio_client = Mock(spec=Minio)
-    yield mock_minio_client
-    
-    
+    return mock_minio_client
+
+
 def test_connect_to_rabbitmq(rabbit_connection):
     # Test the connect_to_rabbitmq function
     host = "localhost"
     port = 5672
     conn = connect_to_rabbitmq(host, port)
     assert conn == rabbit_connection
+
 
 def test_get_rabbit_connection(rabbit_connection):
     # Test the get_rabbit_connection function
@@ -63,9 +64,16 @@ def test_publish_message(rabbit_channel):
         exchange="", routing_key=queue_name, body=json.dumps(message)
     )
     assert rabbit_channel.basic_publish.call_count == 1
-    assert rabbit_channel.basic_publish.call_args[1]["exchange"] == ""  # Assert the exchange is empty
-    assert rabbit_channel.basic_publish.call_args[1]["routing_key"] == queue_name  # Assert the routing key is correct
-    assert rabbit_channel.basic_publish.call_args[1]["body"] == json.dumps(message)  # Assert the body is correct
+    assert (
+        rabbit_channel.basic_publish.call_args[1]["exchange"] == ""
+    )  # Assert the exchange is empty
+    assert (
+        rabbit_channel.basic_publish.call_args[1]["routing_key"] == queue_name
+    )  # Assert the routing key is correct
+    assert rabbit_channel.basic_publish.call_args[1]["body"] == json.dumps(
+        message
+    )  # Assert the body is correct
+
 
 def test_consume_messages(rabbit_channel):
     # Test the consume_messages function
@@ -73,13 +81,21 @@ def test_consume_messages(rabbit_channel):
     callback_mock = Mock()
     consume_messages(rabbit_channel, queue_name, callback_mock)
     rabbit_channel.basic_consume.assert_called_once_with(
-        queue=queue_name, on_message_callback=rabbit_channel.basic_consume.call_args[1]["on_message_callback"]
+        queue=queue_name,
+        on_message_callback=rabbit_channel.basic_consume.call_args[1][
+            "on_message_callback"
+        ],
     )
     rabbit_channel.start_consuming.assert_called_once()
     assert rabbit_channel.basic_consume.call_count == 1
     assert rabbit_channel.start_consuming.call_count == 1
-    assert rabbit_channel.basic_consume.call_args[1]["queue"] == queue_name  # Assert the queue name is correct
-    assert callable(rabbit_channel.basic_consume.call_args[1]["on_message_callback"])  # Assert the callback is a callable
+    assert (
+        rabbit_channel.basic_consume.call_args[1]["queue"] == queue_name
+    )  # Assert the queue name is correct
+    assert callable(
+        rabbit_channel.basic_consume.call_args[1]["on_message_callback"]
+    )  # Assert the callback is a callable
+
 
 def test_process_feedback_message(minio_client):
     # Test the process_feedback_message function
@@ -91,18 +107,18 @@ def test_process_feedback_message(minio_client):
         }
     )
     minio_bucket = "test_bucket"
-    with patch("app_utils.rabbitmq.send_email") as mock_send_email:
+    with patch("app_utils.rabbitmq.send_email") as mock_send_email, \
+         patch("app_utils.rabbitmq.fetch_file_contents_from_minio") as mock_fetch_file:
+        mock_fetch_file.return_value = "/tmp/tmpm_alnmvc"
         process_feedback_message(body.encode(), minio_client, minio_bucket)
         mock_send_email.assert_called_once_with(
             "example@example.com",
-            "/path/to/file.json",
+            "/tmp/tmpm_alnmvc",
             "ABC123",
-            minio_client,
-            minio_bucket,
         )
         assert mock_send_email.call_count == 1
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_consume_feedback_messages(rabbit_channel, minio_client):
     # Test the consume_feedback_messages function
     feedback_queue = "feedback_queue"
@@ -122,7 +138,9 @@ async def test_consume_feedback_messages(rabbit_channel, minio_client):
         }
     )
     stop_event = asyncio.Event()
-    with patch("app_utils.rabbitmq.process_feedback_message") as mock_process_feedback_message:
+    with patch(
+        "app_utils.rabbitmq.process_feedback_message"
+    ) as mock_process_feedback_message:
         # Case 1: No message available
         rabbit_channel.basic_get.return_value = (None, None, None)
         await asyncio.sleep(1.1)  # Wait for the loop to sleep for 1 second
@@ -135,11 +153,17 @@ async def test_consume_feedback_messages(rabbit_channel, minio_client):
         ]
         try:
             await consume_feedback_messages(
-                rabbit_channel, feedback_queue, minio_client, minio_bucket, stop_event=stop_event
+                rabbit_channel,
+                feedback_queue,
+                minio_client,
+                minio_bucket,
+                stop_event=stop_event,
             )
         except asyncio.CancelledError:
             pass  # Ignore CancelledError
-        mock_process_feedback_message.assert_called_once_with(body1.encode(), minio_client, minio_bucket)
+        mock_process_feedback_message.assert_called_once_with(
+            body1.encode(), minio_client, minio_bucket
+        )
         rabbit_channel.basic_ack.assert_called_once_with(delivery_tag=1)
 
         # Case 3: Multiple messages available
@@ -151,13 +175,21 @@ async def test_consume_feedback_messages(rabbit_channel, minio_client):
         ]
         try:
             await consume_feedback_messages(
-                rabbit_channel, feedback_queue, minio_client, minio_bucket, stop_event=stop_event
+                rabbit_channel,
+                feedback_queue,
+                minio_client,
+                minio_bucket,
+                stop_event=stop_event,
             )
         except asyncio.CancelledError:
             pass  # Ignore CancelledError
         assert mock_process_feedback_message.call_count == 2
-        mock_process_feedback_message.assert_any_call(body1.encode(), minio_client, minio_bucket)
-        mock_process_feedback_message.assert_any_call(body2.encode(), minio_client, minio_bucket)
+        mock_process_feedback_message.assert_any_call(
+            body1.encode(), minio_client, minio_bucket
+        )
+        mock_process_feedback_message.assert_any_call(
+            body2.encode(), minio_client, minio_bucket
+        )
         rabbit_channel.basic_ack.assert_any_call(delivery_tag=2)
         rabbit_channel.basic_ack.assert_any_call(delivery_tag=3)
 
@@ -168,9 +200,14 @@ async def test_consume_feedback_messages(rabbit_channel, minio_client):
             (None, None, None),  # No more messages
         ]
         await consume_feedback_messages(
-            rabbit_channel, feedback_queue, minio_client, minio_bucket, stop_event=stop_event
+            rabbit_channel,
+            feedback_queue,
+            minio_client,
+            minio_bucket,
+            stop_event=stop_event,
         )
         assert mock_process_feedback_message.call_count == 3
-        mock_process_feedback_message.assert_called_with(body1.encode(), minio_client, minio_bucket)
+        mock_process_feedback_message.assert_called_with(
+            body1.encode(), minio_client, minio_bucket
+        )
         rabbit_channel.basic_ack.assert_called_with(delivery_tag=4)
-
