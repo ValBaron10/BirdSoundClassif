@@ -39,27 +39,13 @@ def mock_rabbitmq_channel():
     with patch("app.api.main.rabbitmq_channel") as mock:
         yield mock
 
-@pytest.fixture()
-def test_app(set_env_var):  # Add set_env_var as a dependency
-    return TestClient(app)
 
 
 @pytest.fixture()
-def mock_minio_client():
-    with patch("app.api.main.minio_client") as mock:
-        yield mock
-
-
-@pytest.fixture()
-def mock_rabbitmq_channel():
-    with patch("app.api.main.rabbitmq_channel") as mock:
-        yield mock
-
-
-@pytest.fixture
 def smtp_mock():
     with patch("smtplib.SMTP", new_callable=MagicMock) as mock_smtp:
         yield mock_smtp
+
 
 
 """
