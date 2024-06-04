@@ -24,7 +24,7 @@ TEST_FILE_PATH = "inference/Turdus_merlula.wav"
 
 class ModelServer:
     """A class representing a model server for bird sound classification."""
-    
+
     def __init__(self, weights_path, bird_dict) -> None:
         """Initialize the ModelServer instance.
 
@@ -32,7 +32,7 @@ class ModelServer:
         ----
             weights_path (str): The path to the weights for the model.
             bird_dict (dict): A dictionary containing bird names and their corresponding IDs.
-            
+
         """
         self.weights_path = weights_path
         logger.info("Weights path: {self.weights_path}")

@@ -3,7 +3,7 @@ version: "3.9"
 # Shared set of env variables (secret variables are fetched from `.env` file)
 x-common-env: &common-env
   environment:
-    - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME:-matthieujln}
+    - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME}
 
     - RABBITMQ_HOST=rabbitmq
     - RABBITMQ_PORT=5672
