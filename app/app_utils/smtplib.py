@@ -1,25 +1,35 @@
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
-from tempfile import NamedTemporaryFile
-from app_utils.minio import fetch_file_from_minio
+"""Email Utility Module.
+
+This module provides a utility function for sending emails with classification results
+as attachments. It fetches the JSON file containing the classification results from
+MinIO, creates an email message with the JSON file as an attachment, and sends the email
+using the specified SMTP server (MailHog).
+
+"""
 
 import logging
+import smtplib
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from tempfile import NamedTemporaryFile
+
+from app_utils.minio import fetch_file_from_minio
+
 logging.basicConfig(level=logging.INFO)
 
 
 def send_email(
     email, json_minio_path, ticket_number, minio_client, minio_bucket
 ) -> None:
-    """
-    Sends an email with the classification results as an attachment.
+    """Send an email with the classification results as an attachment.
 
     The function fetches the JSON file containing the classification results from MinIO,
     creates an email message with the JSON file as an attachment, and sends the email
     using the specified SMTP server (MailHog).
 
     Args:
+    ----
         email (str): The recipient's email address.
         json_minio_path (str): The path to the JSON file in MinIO.
         ticket_number (str): The ticket number associated with the classification request.
@@ -27,18 +37,22 @@ def send_email(
         minio_bucket (str): The name of the MinIO bucket where the JSON file is stored.
 
     Returns:
+    -------
         None
 
     Raises:
+    ------
         Exception: If an error occurs while sending the email.
 
     Note:
+    ----
         The function uses MailHog as the SMTP server for sending emails. Make sure MailHog
         is running and accessible at the specified SMTP server and port.
 
         The function creates a temporary file to store the fetched JSON file locally before
         attaching it to the email. The temporary file is automatically deleted when the
         function exits.
+
     """
     # SMTP configuration for MailHog
     smtp_server = "mailhog"
@@ -56,7 +70,8 @@ def send_email(
 
         if not success:
             logging.error(
-                f"Failed to fetch JSON file '{json_minio_path}' from MinIO. Skipping email sending."
+                f"Failed to fetch JSON file '{json_minio_path}' from MinIO. " 
+                f"Skipping email sending."
             )
             return
 
@@ -71,7 +86,8 @@ def send_email(
     message["Subject"] = f"Classification Results - Ticket #{ticket_number}"
 
     # Attach the email body
-    body = f"Please find the classification results attached.\n\nTicket Number: {ticket_number}"
+    body = "Please find the classification results attached."
+    f"\n\nTicket Number: {ticket_number}"
     message.attach(MIMEText(body, "plain"))
 
     # Attach the JSON file
@@ -85,6 +101,11 @@ def send_email(
     try:
         with smtplib.SMTP(smtp_server, smtp_port) as server:
             server.send_message(message)
-        logging.info(f"\n\nEmail sent successfully to {email} for ticket #{ticket_number}\n\n")
-    except Exception as e:
-        logging.error(f"\n\nFailed to send email to {email} for ticket #{ticket_number}. Error: {str(e)}\n\n")
+        logging.info(
+            f"\n\nEmail sent successfully to {email} for ticket #{ticket_number}\n\n"
+        )
+    except Exception:
+        logging.error(
+            f"\n\nFailed to send email to {email} for ticket #{ticket_number}. " 
+            "Error: {e!s}\n\n"
+        )

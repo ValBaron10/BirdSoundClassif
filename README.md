@@ -11,6 +11,7 @@ ___
 - [Introduction](#introduction)
 - [Features](#features)
 - [Installation](#installation)
+- [Usage](#usage)
 - [Example of healthy logs](#example-of-healthy-logs)
 
 
@@ -140,7 +141,7 @@ Congratulations! Your request is making a round trip inside the service, let's s
 ### Access service UIs
 
 #### S3 Storage
-When the upload arrives, the wav files is stored in an S3 bucket
+When the upload arrives, the wav file is stored in an S3 bucket
 
 - In your browser, go to `localhost:9001`, default user / password are `miniouser` / `miniouser123`
   - Change these values in the `.env` file if needed  
@@ -149,7 +150,7 @@ When the upload arrives, the wav files is stored in an S3 bucket
 ![Alt Text](docs/readme/minio2.png)
 
 
-#### Mailhog (developper mail client) 
+#### Mailhog (developer mail client) 
 When the api container gets the feedback messgae from the inference container, it sends an email to the user's email address
 
 - In your browser, go to `localhost:8025`

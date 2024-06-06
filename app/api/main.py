@@ -1,17 +1,48 @@
+"""API Module.
+
+This module implements the API endpoints 
+for the bird sound classification application.
+It provides endpoints for uploading audio files, 
+storing them in MinIO, and publishing messages
+to RabbitMQ queues for further processing. 
+It also consumes feedback messages from a RabbitMQ
+queue and handles them accordingly.
+
+The module relies on the following dependencies:
+
+app_utils.minio: Provides utility functions for interacting with MinIO.
+app_utils.rabbitmq: Provides utility functions for interacting with RabbitMQ.
+fastapi: A web framework for building APIs with Python.
+minio: A library for interacting with MinIO object storage.
+Example usage:
+
+Set the required environment variables for RabbitMQ, MinIO, and other configurations.
+Run the API server: uvicorn app.main:app --reload
+Access the API endpoints using a web browser or an API client.
+Available endpoints:
+
+/healthcheck: Returns the health status of the application.
+/upload-dev: Simulates the upload of a default audio file 
+and publishes a message to RabbitMQ.
+/upload: Allows users to upload an audio file and publishes a message to RabbitMQ.
+Note: Make sure to have the necessary dependencies installed 
+and the required environment variables set before running the application.
+
+"""
+
+import asyncio
+import logging
 import os
 import uuid
-import asyncio
-from fastapi import FastAPI, File, UploadFile, Form
-from minio import Minio
 
 from app_utils.minio import ensure_bucket_exists, write_file_to_minio
 from app_utils.rabbitmq import (
+    consume_feedback_messages,
     get_rabbit_connection,
     publish_message,
-    consume_feedback_messages,
 )
-
-import logging
+from fastapi import FastAPI, File, Form, UploadFile
+from minio import Minio
 
 logging.basicConfig(level=logging.INFO)
 
@@ -58,14 +89,17 @@ rabbitmq_channel.queue_declare(queue=FEEDBACK_QUEUE)
 
 @app.on_event("startup")
 async def startup_event() -> None:
-    """
-    Startup event handler.
+    """Startup event handler.
 
-    This function is called when the application starts up. It creates a task to consume feedback messages
-    from the specified RabbitMQ queue using the provided RabbitMQ channel, MinIO client, and MinIO bucket.
+    This function is called when the application starts up. 
+    It creates a task to consume feedback messages
+    from the specified RabbitMQ queue using the provided RabbitMQ channel, 
+    MinIO client, and MinIO bucket.
 
-    Returns:
+    Returns
+    -------
         None
+
     """
     asyncio.create_task(
         consume_feedback_messages(
@@ -77,21 +111,21 @@ async def startup_event() -> None:
 #################### ROUTES ####################
 @app.get("/healthcheck")
 def healthcheck() -> dict:
-    """
-    Healthcheck endpoint.
+    """Healthcheck endpoint.
 
     This endpoint returns the health status of the application.
 
-    Returns:
+    Returns
+    -------
         dict: {"status": "ok"}.
+
     """
     return {"status": "ok"}
 
 
 @app.get("/upload-dev")
 async def upload_dev(email: str) -> dict:
-    """
-    Development upload endpoint.
+    """Development upload endpoint.
 
     Simulates the upload of a default file (Turdus_merlula.wav)
     to MinIO and publishes a message
@@ -99,10 +133,13 @@ async def upload_dev(email: str) -> dict:
     It generates a unique ticket number for the upload.
 
     Args:
+    ----
         email (str): The email address associated with the upload.
 
     Returns:
+    -------
         dict: A dictionary containing the filename, success message, email, and ticket number.
+
     """
     file_path = "api/Turdus_merlula.wav"
     file_name = file_path.split("/")[-1]
@@ -114,7 +151,7 @@ async def upload_dev(email: str) -> dict:
         logging.info(f"File {file_name} already exists in MinIO.")
     except Exception as e:
         logging.error(
-            f"File {file_name} does not exist in MinIO. Uploading... Error: {str(e)}"
+            f"File {file_name} does not exist in MinIO. Uploading... Error: {e!s}"
         )
 
         # Read the file content
@@ -143,8 +180,7 @@ async def upload_dev(email: str) -> dict:
 
 @app.post("/upload")
 async def upload_record(file: UploadFile = File(...), email: str = Form(...)):
-    """
-    Upload a record endpoint.
+    """Upload a record endpoint.
 
     Allows users to upload an audio file (.wav) along with their email address.
     Checks if the file is a valid .wav file, reads the file content,
@@ -153,14 +189,20 @@ async def upload_record(file: UploadFile = File(...), email: str = Form(...)):
     to the specified RabbitMQ queue for further processing.
 
     Args:
+    ----
         file (UploadFile): The audio file to be uploaded. It should be a .wav file.
         email (str): The email address associated with the upload.
 
     Returns:
-        dict: A dictionary containing the filename, success message, email, and ticket number.
+    -------
+        dict: A dictionary containing the filename, 
+        success message, email, and ticket number.
 
     Raises:
-        HTTPException: If the uploaded file is not a .wav file, an error message is returned.
+    ------
+        HTTPException: If the uploaded file is not a .wav file, 
+        an error message is returned.
+
     """
     # Check if the file is a .wav file
     if file.content_type not in ["audio/wav"]:  # TODO: implement .mp3
@@ -176,7 +218,7 @@ async def upload_record(file: UploadFile = File(...), email: str = Form(...)):
         logging.info(f"File {file_name} already exists in MinIO.")
     except Exception as e:
         logging.error(
-            f"File {file_name} does not exist in MinIO. Uploading... Error: {str(e)}"
+            f"File {file_name} does not exist in MinIO. Uploading... Error: {e!s}"
         )
 
         write_file_to_minio(minio_client, MINIO_BUCKET, file_name, file_content)

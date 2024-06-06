@@ -1,15 +1,42 @@
-import os
-import json
-import io
-from minio import Minio
+"""Inference Pipeline Module.
 
-from src.models.bird_dict import BIRD_DICT
-from app_utils.rabbitmq import get_rabbit_connection, consume_messages, publish_message
+This module implements the inference pipeline for bird sound classification.
+It listens for messages from a RabbitMQ queue, 
+fetches the corresponding audio files from MinIO,
+performs inference using a pre-trained model, 
+and publishes the results back to another RabbitMQ queue.
+
+The module relies on the following dependencies:
+- `app_utils.minio`: Provides utility functions for interacting with MinIO.
+- `app_utils.rabbitmq`: Provides utility functions for interacting with RabbitMQ.
+- `minio`: A library for interacting with MinIO object storage.
+- `model_serve.model_serve`: Provides the `ModelServer` class 
+    for loading and running the pre-trained model.
+- `src.models.bird_dict`: Provides a dictionary mapping bird species 
+    to their corresponding labels.
+
+Example usage:
+1. Set the required environment variables for RabbitMQ, MinIO, and model paths.
+2. Run the script: `python inference_pipeline.py`
+   The script will start listening for messages
+   from the specified RabbitMQ queue and process them accordingly.
+
+Note: Make sure to have the necessary dependencies installed 
+and the pre-trained model available before running the script.
+
+"""
+
+import json
+import logging
+import os
+import io
+
 from app_utils.minio import write_file_to_minio
+from app_utils.rabbitmq import consume_messages, get_rabbit_connection, publish_message
+from minio import Minio
 from model_serve.model_serve import ModelServer
 
-
-import logging
+from src.models.bird_dict import BIRD_DICT
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,19 +71,22 @@ minio_client = Minio(
 
 #################### QUEUE ####################
 def callback(body) -> None:
+    """Trigger an inference pipeline run as RabbitMQ message callback."""
     message = json.loads(body.decode())
     minio_path = message["minio_path"]
     email = message["email"]
     ticket_number = message["ticket_number"]
 
     logger.info(
-        f"Received message from RabbitMQ: MinIO path={minio_path}, Email={email}, Ticket number={ticket_number}"
+        f"Received message from RabbitMQ: MinIO path={minio_path}, " 
+        f"Email={email}, Ticket number={ticket_number}"
     )
     run_inference_pipeline(minio_path, email, ticket_number)
 
 
 #################### ML I/O  ####################
 def run_inference_pipeline(minio_path, email, ticket_number) -> None:
+    """Run inference pipeline, output classification and publish feedback message."""
     file_name = os.path.basename(minio_path)
     local_file_path = f"/tmp/{file_name}"  # Temporary local file path
 
@@ -65,7 +95,7 @@ def run_inference_pipeline(minio_path, email, ticket_number) -> None:
         minio_client.fget_object(MINIO_BUCKET, file_name, local_file_path)
         logger.info(f"WAV file downloaded from MinIO: {file_name}")
     except Exception as e:
-        logger.error(f"Error downloading WAV file from MinIO: {str(e)}")
+        logger.error(f"Error downloading WAV file from MinIO: {e!s}")
         return
 
     inference = ModelServer(WEIGHTS_PATH, BIRD_DICT)
@@ -86,7 +116,8 @@ def run_inference_pipeline(minio_path, email, ticket_number) -> None:
     json_data = json.dumps(lines).encode("utf-8")
     write_file_to_minio(minio_client, MINIO_BUCKET, file_name, content_stream)    
 
-    # Publish the message containing the MinIO paths, email, and ticket number on the feedback channel
+    # Publish the message containing the MinIO paths, email, and ticket number 
+    # on the feedback channel
     message = {
         "wav_minio_path": f"{MINIO_BUCKET}/{file_name}",
         "json_minio_path": f"{file_name}",

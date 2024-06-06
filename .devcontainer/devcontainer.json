@@ -1,0 +1,24 @@
+{
+  "name": "Bird Sound Classification",
+  "dockerFile": "Dockerfile",
+  "context": "..",
+  "workspaceFolder": "/workspace",
+  "build": {
+    "args": {
+      "USER_UID": "${localEnv:UID}",
+      "USER_GID": "${localEnv:GID}"
+    }
+  },
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash"
+  },
+  "extensions": [
+    "ms-python.python",
+    "ms-azuretools.vscode-docker"
+  ],
+  "postCreateCommand": "pip install --upgrade pip && pip install --editable .",
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ]
+}
