@@ -2,7 +2,7 @@ import os
 import json
 import glob
 from src.models.run_detection_cpu import load_model, run_detection
-from src.visualization.visu import merge_images, visualise_model_out
+from src.visualization.visu import merge_images, visualise_model_out, get_detections_times_and_freqs
 
 import logging
 
@@ -20,14 +20,14 @@ TEST_FILE_PATH = "inference/Turdus_merlula.wav"
 class ModelServer:
     def __init__(self, weights_path, bird_dict) -> None:
         self.weights_path = weights_path
-        logger.info("Weights path: {self.weights_path}")
+        logger.info(f"Weights path: {self.weights_path}")
 
         self.bird_dict = bird_dict
         self.bird_dict["Non bird sound"] = 0
         self.reverse_bird_dict = {
             id: bird_name for bird_name, id in self.bird_dict.items()
         }
-        logger.info("Reversed birds dict: {self.reverse_bird_dict}")
+        logger.info(f"Reversed birds dict: {len(self.reverse_bird_dict)}")
 
         self.model = None
         self.config = None
@@ -53,8 +53,9 @@ class ModelServer:
         self.detection_ready = True
 
         return fp, outputs, spectrogram
+    
 
-    def get_classification(self, file_path, return_spectrogram=False):
+    def get_classification(self, file_path, return_spectrogram=True):
         fp, outputs, spectrogram = self.run_detection(file_path, return_spectrogram)
 
         class_bbox = merge_images(fp, outputs, self.config.num_classes)
@@ -67,8 +68,10 @@ class ModelServer:
             if len(class_bbox[str(idx)]["bbox_coord"]) > 0
         }
 
-        logger.info(f"[output]: \n{output}")
-        if return_spectrogram:
+        lines = get_detections_times_and_freqs(output, fp, spectrogram, self.reverse_bird_dict)
+
+        logger.info(f"[lines]: \n{lines}")
+        if False:
             visualise_model_out(output, fp, spectrogram, self.reverse_bird_dict)
             # TODO: enregistrer le spectrogram
-        return output
+        return lines

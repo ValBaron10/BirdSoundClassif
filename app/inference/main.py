@@ -1,5 +1,6 @@
 import os
 import json
+import io
 from minio import Minio
 
 from src.models.bird_dict import BIRD_DICT
@@ -69,22 +70,26 @@ def run_inference_pipeline(minio_path, email, ticket_number) -> None:
 
     inference = ModelServer(WEIGHTS_PATH, BIRD_DICT)
     inference.load()
-    output = inference.get_classification(local_file_path)
-    logger.info(f"Classification output: {output}")
+    lines = inference.get_classification(local_file_path)
+    logger.info(f"Classification output: {lines}")
 
-    json_file_name = os.path.splitext(file_name)[0] + ".json"
-    json_output = list(output.values())[
-        0
-    ]  # Extract the JSON output from the dictionary
+    file_name = os.path.splitext(file_name)[0] + ".txt"
+    output = io.StringIO()
 
-    # Write the JSON output to MinIO using the helper function
-    json_data = json.dumps(json_output).encode("utf-8")
-    write_file_to_minio(minio_client, MINIO_BUCKET, json_file_name, json_data)
+    for line in lines:
+        output.write(line)
+
+    content = output.getvalue()
+    content_bytes = content.encode('utf-8')
+    content_stream = io.BytesIO(content_bytes)
+
+    json_data = json.dumps(lines).encode("utf-8")
+    write_file_to_minio(minio_client, MINIO_BUCKET, file_name, content_stream)    
 
     # Publish the message containing the MinIO paths, email, and ticket number on the feedback channel
     message = {
         "wav_minio_path": f"{MINIO_BUCKET}/{file_name}",
-        "json_minio_path": f"{json_file_name}",
+        "json_minio_path": f"{file_name}",
         "email": email,
         "ticket_number": ticket_number,
     }
