@@ -181,3 +181,53 @@ def visualise_model_out(output, fp, spectrogram, reverse_dict):
         ax.set_ylabel("Frequency [Hz]")
         ax.set_xlabel("Time [s]")
         plt.show()
+
+
+def get_detections_times_and_freqs(output, fp, spectrogram, reverse_dict):
+    
+    time_limits = [(i * fp.HOP_SPECTRO, i * fp.HOP_SPECTRO + 1024) for i, _ in spectrogram]
+    min_score = 0.01
+
+    # List to store all the lines to print in a file
+    lines = []
+
+    for idx, (i, spectro) in enumerate(spectrogram):
+        start, end = time_limits[idx]
+
+        for b_id in np.arange(len(reverse_dict)):
+
+            b_species = reverse_dict[b_id]
+
+            if b_species not in output.keys():
+                continue
+
+            proposals = torch.Tensor(output[b_species]['bbox_coord'])
+            class_scores = torch.Tensor(output[b_species]['scores'])
+
+            idx = torch.nonzero(((start <= proposals[:, 0]) & (proposals[:, 0] < end)) |
+                         ((start <= proposals[:, 2]) & (proposals[:, 2] < end)))[:, 0]
+            bbox = proposals[idx]
+            bbox[:, [0, 2]] = bbox[:, [0, 2]].clamp(min=start, max=end - 1)
+            scores = class_scores[idx]
+
+            for j, row in enumerate(bbox):
+
+                x_1, y_1, x_2, y_2 = row
+                x_1 = int(x_1)
+                x_2 = int(x_2)
+                y_1 = int(y_1)
+                y_2 = int(y_2)
+                pix_precision_y = 33.3
+                pix_precision_x = 0.002993197278911565 # 0.003
+
+                score = np.round(scores[j].item(), 4)
+                if score < min_score:
+                    species = 'Unsure'
+                else:
+                    species = reverse_dict[b_id]
+
+                line = f"{x_1*pix_precision_x}\t{x_2*pix_precision_x}\t{species}\n\\\t{y_1*pix_precision_y}\t{y_2*pix_precision_y}\n"
+                lines.append(line)
+
+    return lines
+
