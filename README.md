@@ -1,7 +1,7 @@
 ___
 # **Bird Sound Classification: API Integration**
 ___
-#TODO add a brief description  
+#TODO add a brief description
 
 ![Alt Text](docs/readme/ContainerStructureBase.png)
 
@@ -17,7 +17,7 @@ ___
 
 ## **Introduction**
 
-Allows users to upload WAV files containing bird sounds and receive classification results via email. 
+Allows users to upload WAV files containing bird sounds and receive classification results via email.
 Consists of two main services: an API service for handling user requests and an inference service for performing the actual classification.
 
 ## **Features**
@@ -87,7 +87,7 @@ They are linked to each container with this:
 
 ## **Usage**
 
-**Api runs on port `8001`** 
+**Api runs on port `8001`**
 
 ### Launch services
 
@@ -109,7 +109,7 @@ Open a new terminal to run the next commands
 #### GET `/upload-dev`
 A function that relies on a built-in wav file instead of a real upload.
 - From the browser: Go to `localhost:8001/docs`, click on `upload-dev` endpoint and give an email address
-- Using the `Makefile`: 
+- Using the `Makefile`:
 ```bash
 make upload-dev
 ```
@@ -120,7 +120,7 @@ curl -X 'GET' \
   -H 'accept: application/json'
 ```
 
-#### POST `/upload` 
+#### POST `/upload`
 A function receiving a wav file from the user.
 - From the browser: Go to `localhost:8001/docs`, select on `upload` endpoint, select the file to upload and give an email address
 - From the terminal:
@@ -133,7 +133,7 @@ curl -X 'POST' \
   -F 'file=@merle1.wav;type=audio/wav' \
   -F 'email=user@example.com'
 
-#TODO explain how does the `@` get to point to a local file in a curl command 
+#TODO explain how does the `@` get to point to a local file in a curl command
 ```
 
 Congratulations! Your request is making a round trip inside the service, let's see what happens...
@@ -144,21 +144,21 @@ Congratulations! Your request is making a round trip inside the service, let's s
 When the upload arrives, the wav file is stored in an S3 bucket
 
 - In your browser, go to `localhost:9001`, default user / password are `miniouser` / `miniouser123`
-  - Change these values in the `.env` file if needed  
+  - Change these values in the `.env` file if needed
 ![Alt Text](docs/readme/minio.png)
-- Click on the `mediae` folder, find the `wav` file and the `json` file containing the results!   
+- Click on the `mediae` folder, find the `wav` file and the `json` file containing the results!
 ![Alt Text](docs/readme/minio2.png)
 
 
-#### Mailhog (developer mail client) 
+#### Mailhog (developer mail client)
 When the api container gets the feedback messgae from the inference container, it sends an email to the user's email address
 
 - In your browser, go to `localhost:8025`
 - Click on the new message to see the mail body
-- Click on the `MIME` tab an click on the `download` `application/json` button to download the classification results `json` attachement!   
+- Click on the `MIME` tab an click on the `download` `application/json` button to download the classification results `json` attachement!
 ![Alt Text](docs/readme/mailhog.png)
 
-#### RabbitMQ Management 
+#### RabbitMQ Management
 A web-based interface for monitoring and managing RabbitMQ message queues and their traffic.
 
 - In your browser, go to `localhost:15672`
@@ -217,11 +217,11 @@ inference-1  | INFO:model_serve.model_serve:Loading model...
 inference-1  | INFO:model_serve.model_serve:Model loaded successfully
 inference-1  | INFO:model_serve.model_serve:Starting run_detection on Turdus_merlula.wav...
 100%|██████████| 1/1 [00:00<00:00,  2.15it/s]
-inference-1  | INFO:model_serve.model_serve:[fp]: 
+inference-1  | INFO:model_serve.model_serve:[fp]:
 inference-1  | <src.features.prepare_dataset.File_Processor object at 0x7385bc1dfe20>
-inference-1  | 
-inference-1  | 
-inference-1  | INFO:model_serve.model_serve:[output]: 
+inference-1  |
+inference-1  |
+inference-1  | INFO:model_serve.model_serve:[output]:
 inference-1  | {'Turdus merula': {'bbox_coord': [[552, 182, 629, 258]], 'scores': [0.9958606362342834]}}
 ...
 inference-1  | INFO:root:File 'Turdus_merlula.json' written to MinIO bucket 'mediae' successfully.
@@ -230,15 +230,15 @@ inference-1  | INFO:root:Published message: {'wav_minio_path': 'mediae/Turdus_me
 api-1        | INFO:root:Fetching file 'Turdus_merlula.json' from MinIO bucket 'mediae'...
 api-1        | INFO:root:File 'Turdus_merlula.json' fetched from MinIO bucket 'mediae' and saved to '/tmp/tmpukc2ftj7' successfully.
 ...
-api-1        | 
+api-1        |
 api-1        | Email sent successfully to user@example.com for ticket #c0ea90
-api-1        | 
-```   
+api-1        |
+```
 
-<br><br><br>  
+<br><br><br>
 
 --------
-## **[DEPRECATED] PREVIOUS CHECKPOINTS**  
+## **[DEPRECATED] PREVIOUS CHECKPOINTS**
 ___
 
 
@@ -305,8 +305,8 @@ Modifs nécessaires pour le cpu:
 - Ajout d'un script spécifique au cpu `run_detection_cpu.py`
 
 ```bash
-root@0a0df020b2e4:/app# python inference/main.py 
+root@0a0df020b2e4:/app# python inference/main.py
 ...
-2024-05-08 10:28:03,038 - INFO - [output]: 
+2024-05-08 10:28:03,038 - INFO - [output]:
 {'Turdus merula': {'bbox_coord': [[552, 182, 629, 258]], 'scores': [0.9958606362342834]}}
 ```

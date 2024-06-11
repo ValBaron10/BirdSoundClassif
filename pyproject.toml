@@ -1,6 +1,8 @@
+############ TESTS ############
+[tool.pytest.ini_options]
+markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]
 
-
-#### 
+#### RUFF LINT / FORMAT ########
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [
@@ -102,4 +104,4 @@ docstring-code-line-length = "dynamic"
 # 4. Ignore `E402` (import violations) in all `__init__.py` files, and in select subdirectories.
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402", "D104"]
-"**/{tests,docs,tools}/*" = ["E402"]
+"**/{tests,docs,tools}/*" = ["D103", "E402", "E", "D"] # "RUF501" = lines too long
