@@ -1,0 +1,25 @@
+FROM python:3.10.14-bookworm
+
+
+# Enable terminal color support
+RUN echo 'export TERM=xterm-256color' >> /etc/profile
+
+WORKDIR /app
+
+COPY requirements.txt .
+
+# Development:
+RUN pip install -r requirements.txt
+
+# production:
+# RUN pip install --no-cache-dir -r requirements.txt
+
+# Installation of the `src` package
+COPY ./src ./src
+COPY ./setup.py .
+RUN pip install -e .
+
+
+RUN echo "alias python='python3'" >> /root/.bashrc
+
+CMD ["bash"]
