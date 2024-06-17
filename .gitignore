@@ -17,6 +17,7 @@ container.def
 .venv
 .vscode
 .ipynb_checkpoints
+.python_version
 
 
 
