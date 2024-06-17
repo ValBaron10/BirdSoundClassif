@@ -1,10 +1,10 @@
 """API Module.
 
-This module implements the API endpoints
+This module implements the API endpoints 
 for the bird sound classification application.
-It provides endpoints for uploading audio files,
+It provides endpoints for uploading audio files, 
 storing them in MinIO, and publishing messages
-to RabbitMQ queues for further processing.
+to RabbitMQ queues for further processing. 
 It also consumes feedback messages from a RabbitMQ
 queue and handles them accordingly.
 
@@ -22,10 +22,10 @@ Access the API endpoints using a web browser or an API client.
 Available endpoints:
 
 /healthcheck: Returns the health status of the application.
-/upload-dev: Simulates the upload of a default audio file
+/upload-dev: Simulates the upload of a default audio file 
 and publishes a message to RabbitMQ.
 /upload: Allows users to upload an audio file and publishes a message to RabbitMQ.
-Note: Make sure to have the necessary dependencies installed
+Note: Make sure to have the necessary dependencies installed 
 and the required environment variables set before running the application.
 
 """
@@ -63,45 +63,37 @@ logging.info(
     f"Configuration: MINIO_ENDPOINT={MINIO_ENDPOINT}, MINIO_BUCKET={MINIO_BUCKET}"
 )
 
-minio_client = None
-rabbitmq_connection = None
-rabbitmq_channel = None
+#################### STORAGE ####################
+logging.info("Initializing MinIO client...")
+minio_client = Minio(
+    MINIO_ENDPOINT,
+    access_key=MINIO_ACCESS_KEY,
+    secret_key=MINIO_SECRET_KEY,
+    secure=False,
+)
+logging.info("Checking if bucket exists...")
+ensure_bucket_exists(minio_client, MINIO_BUCKET)
 
+#################### FORWARDING QUEUE ####################
+logging.info("Connecting to RabbitMQ...")
+rabbitmq_connection = get_rabbit_connection(RABBITMQ_HOST, RABBITMQ_PORT)
+rabbitmq_channel = rabbitmq_connection.channel()
 
-def initialize_clients():
-    global minio_client, rabbitmq_connection, rabbitmq_channel
+logging.info(f"Declaring queue: {FORWARDING_QUEUE}")
+rabbitmq_channel.queue_declare(queue=FORWARDING_QUEUE)
 
-    #################### STORAGE ####################
-    logging.info("Initializing MinIO client...")
-    minio_client = Minio(
-        MINIO_ENDPOINT,
-        access_key=MINIO_ACCESS_KEY,
-        secret_key=MINIO_SECRET_KEY,
-        secure=False,
-    )
-    logging.info("Checking if bucket exists...")
-    ensure_bucket_exists(minio_client, MINIO_BUCKET)
-
-    #################### FORWARDING QUEUE ####################
-    logging.info("Connecting to RabbitMQ...")
-    rabbitmq_connection = get_rabbit_connection(RABBITMQ_HOST, RABBITMQ_PORT)
-    rabbitmq_channel = rabbitmq_connection.channel()
-
-    logging.info(f"Declaring queue: {FORWARDING_QUEUE}")
-    rabbitmq_channel.queue_declare(queue=FORWARDING_QUEUE)
-
-    #################### FEEDBACK QUEUE ####################
-    logging.info(f"Declaring queue: {FEEDBACK_QUEUE}")
-    rabbitmq_channel.queue_declare(queue=FEEDBACK_QUEUE)
+#################### FEEDBACK QUEUE ####################
+logging.info(f"Declaring queue: {FEEDBACK_QUEUE}")
+rabbitmq_channel.queue_declare(queue=FEEDBACK_QUEUE)
 
 
 @app.on_event("startup")
 async def startup_event() -> None:
     """Startup event handler.
 
-    This function is called when the application starts up.
+    This function is called when the application starts up. 
     It creates a task to consume feedback messages
-    from the specified RabbitMQ queue using the provided RabbitMQ channel,
+    from the specified RabbitMQ queue using the provided RabbitMQ channel, 
     MinIO client, and MinIO bucket.
 
     Returns
@@ -109,7 +101,6 @@ async def startup_event() -> None:
         None
 
     """
-    initialize_clients()
     asyncio.create_task(
         consume_feedback_messages(
             rabbitmq_channel, FEEDBACK_QUEUE, minio_client, MINIO_BUCKET
@@ -204,12 +195,12 @@ async def upload_record(file: UploadFile = File(...), email: str = Form(...)):
 
     Returns:
     -------
-        dict: A dictionary containing the filename,
+        dict: A dictionary containing the filename, 
         success message, email, and ticket number.
 
     Raises:
     ------
-        HTTPException: If the uploaded file is not a .wav file,
+        HTTPException: If the uploaded file is not a .wav file, 
         an error message is returned.
 
     """

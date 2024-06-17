@@ -1,7 +1,7 @@
 """MinIO Utility Module.
 
 This module provides utility functions for interacting with MinIO object storage.
-Includes functions for ensuring bucket existence,
+Includes functions for ensuring bucket existence, 
 writing files to MinIO, and fetching files from MinIO.
 
 """
@@ -9,7 +9,6 @@ writing files to MinIO, and fetching files from MinIO.
 import io
 import logging
 import os
-from tempfile import NamedTemporaryFile
 
 logging.basicConfig(level=logging.INFO)
 
@@ -94,22 +93,3 @@ def fetch_file_from_minio(
         )
         return False
 
-
-def fetch_file_contents_from_minio(minio_client, minio_bucket, file_minio_path):
-    """Fetch a file from MinIO and return the path to the temporary file."""
-    temp_file = NamedTemporaryFile(delete=False)
-    local_file_path = temp_file.name
-
-    # Fetch the file from MinIO and save it locally
-    success = fetch_file_from_minio(
-        minio_client, minio_bucket, file_minio_path, local_file_path
-    )
-
-    if not success:
-        logging.error(
-            f"Failed to fetch file '{file_minio_path}' from MinIO. "
-            f"Skipping further processing."
-        )
-        return None
-
-    return local_file_path

@@ -33,3 +33,6 @@ Donwload the .zip called `data.zip` [here](https://drive.google.com/drive/folder
 
 ### Run inference notebook
 Open `notebooks/1.0_LB_exemple-inference.ipynb` and run each cell one after the other.
+
+
+

@@ -1,18 +1,18 @@
 """Inference Pipeline Module.
 
 This module implements the inference pipeline for bird sound classification.
-It listens for messages from a RabbitMQ queue,
+It listens for messages from a RabbitMQ queue, 
 fetches the corresponding audio files from MinIO,
-performs inference using a pre-trained model,
+performs inference using a pre-trained model, 
 and publishes the results back to another RabbitMQ queue.
 
 The module relies on the following dependencies:
 - `app_utils.minio`: Provides utility functions for interacting with MinIO.
 - `app_utils.rabbitmq`: Provides utility functions for interacting with RabbitMQ.
 - `minio`: A library for interacting with MinIO object storage.
-- `model_serve.model_serve`: Provides the `ModelServer` class
+- `model_serve.model_serve`: Provides the `ModelServer` class 
     for loading and running the pre-trained model.
-- `src.models.bird_dict`: Provides a dictionary mapping bird species
+- `src.models.bird_dict`: Provides a dictionary mapping bird species 
     to their corresponding labels.
 
 Example usage:
@@ -21,7 +21,7 @@ Example usage:
    The script will start listening for messages
    from the specified RabbitMQ queue and process them accordingly.
 
-Note: Make sure to have the necessary dependencies installed
+Note: Make sure to have the necessary dependencies installed 
 and the pre-trained model available before running the script.
 
 """
@@ -78,7 +78,7 @@ def callback(body) -> None:
     ticket_number = message["ticket_number"]
 
     logger.info(
-        f"Received message from RabbitMQ: MinIO path={minio_path}, "
+        f"Received message from RabbitMQ: MinIO path={minio_path}, " 
         f"Email={email}, Ticket number={ticket_number}"
     )
     run_inference_pipeline(minio_path, email, ticket_number)
@@ -106,7 +106,6 @@ def run_inference_pipeline(minio_path, email, ticket_number) -> None:
     file_name = os.path.splitext(file_name)[0] + ".txt"
     output = io.StringIO()
 
-
     for line in lines:
         output.write(line)
 
@@ -117,7 +116,7 @@ def run_inference_pipeline(minio_path, email, ticket_number) -> None:
     json_data = json.dumps(lines).encode("utf-8")
     write_file_to_minio(minio_client, MINIO_BUCKET, file_name, content_stream)    
 
-    # Publish the message containing the MinIO paths, email, and ticket number
+    # Publish the message containing the MinIO paths, email, and ticket number 
     # on the feedback channel
     message = {
         "wav_minio_path": f"{MINIO_BUCKET}/{file_name}",
