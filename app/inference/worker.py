@@ -35,7 +35,7 @@ from app_utils.minio import write_file_to_minio
 from app_utils.rabbitmq import consume_messages, get_rabbit_connection, publish_message
 from minio import Minio
 from model_serve.model_serve import ModelServer
-
+from pydantic import ValidationError
 from src.models.bird_dict import BIRD_DICT
 
 logging.basicConfig(
@@ -72,17 +72,27 @@ minio_client = Minio(
 #################### QUEUE ####################
 def callback(body) -> None:
     """Trigger an inference pipeline run as RabbitMQ message callback."""
+
     message = json.loads(body.decode())
-    minio_path = message["minio_path"]
+    
     email = message["email"]
+    soundfile_minio_path = message["audiofile_path"]
+    annotations_minio_path = message["annotation_path"]
+    spectrogram_minio_path = message["spectrogram_path"]
     ticket_number = message["ticket_number"]
 
+
     logger.info(
-        f"Received message from RabbitMQ: MinIO path={minio_path}, "
+        f"Received message from RabbitMQ: MinIO path={soundfile_minio_path}, "
         f"Email={email}, Ticket number={ticket_number}"
     )
-    run_inference_pipeline(minio_path, email, ticket_number)
-
+    run_inference_pipeline(
+        soundfile_minio_path,
+        email,
+        ticket_number,
+        annotations_minio_path,
+        spectrogram_minio_path
+    )
 
 #################### ML I/O  ####################
 def run_inference_pipeline(minio_path, email, ticket_number, annotation_path, spectrogram_path) -> None:
