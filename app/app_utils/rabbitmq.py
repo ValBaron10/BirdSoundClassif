@@ -10,9 +10,10 @@ import asyncio
 import json
 import logging
 import time
-
+from pydantic import ValidationError
 import pika
 
+from app_utils.amqp_schemas import FeedbackMessage
 from app_utils.minio import fetch_file_contents_from_minio
 from app_utils.smtplib import send_email
 
@@ -153,41 +154,37 @@ def consume_messages(channel, queue_name, callback) -> None:
     channel.start_consuming()
 
 
+
 def process_feedback_message(body, minio_client, minio_bucket) -> None:
     """Process a feedback message received from RabbitMQ.
 
-    This function extracts the email, JSON MinIO path, and ticket number from the message body.
+    This function extracts the email, annotations MinIO path, and ticket number from the message body.
     It then sends an email using the extracted information and the provided MinIO client and bucket.
 
     Args:
     ----
         body (bytes): The body of the feedback message received from RabbitMQ.
         minio_client (Minio): The MinIO client instance used to interact with MinIO.
-        minio_bucket (str): The name of the MinIO bucket where the JSON file is stored.
+        minio_bucket (str): The name of the MinIO bucket where the annotations file is stored.
 
     Returns:
     -------
         None
 
     """
-    data = json.loads(body)
-    email = data["email"]
-    json_minio_path = data["json_minio_path"]
-    ticket_number = data["ticket_number"]
-
-    # Fetch the file from MinIO and get the local file path
-    local_file_path = fetch_file_contents_from_minio(
-        minio_client, minio_bucket, json_minio_path
-    )
-    if local_file_path is None:
-        logging.error(
-            f"Failed to fetch file from MinIO for ticket #{ticket_number}. Skipping email sending."
-        )
+    try:
+        # Deserialize and validate the message using FeedbackMessage
+        feedback_message = FeedbackMessage.parse_raw(body.decode())
+    except ValidationError as e:
+        logging.error(f"Message validation error: {e}")
         return
 
-    # Send the email with the local file path
-    send_email(email, local_file_path, ticket_number)
+    email = feedback_message.email
+    annotations_minio_path = feedback_message.annotations_minio_path
+    ticket_number = feedback_message.ticket_number
 
+    # Send the email with the MinIO path
+    send_email(email, annotations_minio_path, ticket_number, minio_client, minio_bucket)
 
 async def consume_feedback_messages(
     rabbitmq_channel, feedback_queue, minio_client, minio_bucket, stop_event=None

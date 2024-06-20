@@ -41,7 +41,8 @@ from app_utils.rabbitmq import (
     get_rabbit_connection,
     publish_message,
 )
-from app.app_utils.file_schemas import UploadRecord
+from app_utils.file_schemas import UploadRecord
+from app_utils.amqp_schemas import InferenceMessage
 from fastapi import FastAPI, File, Form, UploadFile
 from minio import Minio
 from pydantic import ValidationError
@@ -241,22 +242,23 @@ async def upload_record(file: UploadFile = File(...), email: str = Form(...)):
     # Generate ticket number
     ticket_number = str(uuid.uuid4())[:6]  # Generate a 6-character ticket number
 
-    # Prepare message
-    message = {
-        "audiofile_path": audio_path,
+    # Prepare message data
+    message_data = {
+        "soundfile_minio_path": audio_path,
         "email": upload_data.email,
-        "ticket_number": ticket_number,
-        "annotation_path": annotation_path,
-        "spectrogram_path": spectrogram_path
+        "ticket_number": ticket_number,  # Include ticket_number here
+        "annotations_minio_path": annotation_path,
+        "spectrogram_minio_path": spectrogram_path
     }
+    message = InferenceMessage(**message_data)
 
     # Publish message to RabbitMQ
     logging.info("Publishing message to RabbitMQ...")
-    publish_message(rabbitmq_channel, FORWARDING_QUEUE, message)
+    publish_message(rabbitmq_channel, FORWARDING_QUEUE, message.dict())
 
     return {
         "filename": audio_path,
         "message": "Fichier enregistré avec succès",
         "email": upload_data.email,
-        "ticket_number": ticket_number,
+        "ticket_number": message.ticket_number,
     }
