@@ -9,7 +9,11 @@ files, and getting the classification results.
 import logging
 
 from src.models.run_detection_cpu import load_model, run_detection
-from src.visualization.visu import merge_images, visualise_model_out, get_detections_times_and_freqs
+from src.visualization.visu import (
+    get_detections_times_and_freqs,
+    merge_images,
+    visualise_model_out,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -81,7 +85,6 @@ class ModelServer:
         self.detection_ready = True
 
         return fp, outputs, spectrogram
-    
 
     def get_classification(self, file_path, return_spectrogram=False):
         """Get classification results for an audio file.
@@ -108,13 +111,16 @@ class ModelServer:
             if len(class_bbox[str(idx)]["bbox_coord"]) > 0
         }
 
-        lines = get_detections_times_and_freqs(output, fp, spectrogram, self.reverse_bird_dict)
+        lines = get_detections_times_and_freqs(
+            output, fp, spectrogram, self.reverse_bird_dict
+        )
 
         logger.info(f"[lines]: \n{lines}")
         if False:
             visualise_model_out(output, fp, spectrogram, self.reverse_bird_dict)
             # TODO: enregistrer le spectrogram
         return lines
+
 
 # TODO ensure bird name is given as output
 # TODO unload model method

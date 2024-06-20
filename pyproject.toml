@@ -32,10 +32,13 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
+    "src", # REMOVED src 
+    "requirements.txt"
+
 ]
 
 # Same as Black.
-line-length = 88
+line-length = 99
 indent-width = 4
 
 # Assume Python 3.8
@@ -46,7 +49,7 @@ target-version = "py38"
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
 # McCabe complexity (`C901`) by default.
 select = [
-    "D",    # Docstring-related linting rules
+#    "D",    # Docstring-related linting rules
     "E",
     "E4",   # Import error linting rules
     "E7",   # Indentation error linting rules

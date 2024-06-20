@@ -58,6 +58,24 @@ teardown:
 	docker compose down -v
 
 
+
+#===================================#
+#           CI TOOLS
+#===================================#
+install-ci-tools:
+	pip install -r requirements_ci.txt
+
+
+format:
+	ruff format .
+
+lint:
+	ruff check --fix .
+
+run-pre-commit:
+	pre-commit run --all-files
+	pre-commit run --all-files
+
 #===================================#
 #       DEV COMMANDS
 #===================================#
