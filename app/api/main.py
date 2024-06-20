@@ -41,7 +41,7 @@ from app_utils.rabbitmq import (
     get_rabbit_connection,
     publish_message,
 )
-from app_utils.schemas import UploadRecord
+from app.app_utils.file_schemas import UploadRecord
 from fastapi import FastAPI, File, Form, UploadFile
 from minio import Minio
 from pydantic import ValidationError
@@ -243,7 +243,7 @@ async def upload_record(file: UploadFile = File(...), email: str = Form(...)):
 
     # Prepare message
     message = {
-        "minio_path": audio_path,
+        "audiofile_path": audio_path,
         "email": upload_data.email,
         "ticket_number": ticket_number,
         "annotation_path": annotation_path,
