@@ -41,9 +41,10 @@ from app_utils.rabbitmq import (
     get_rabbit_connection,
     publish_message,
 )
+from app_utils.schemas import UploadRecord
 from fastapi import FastAPI, File, Form, UploadFile
 from minio import Minio
-
+from pydantic import ValidationError
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
@@ -202,7 +203,7 @@ async def upload_record(file: UploadFile = File(...), email: str = Form(...)):
         file (UploadFile): The audio file to be uploaded. It should be a .wav file.
         email (str): The email address associated with the upload.
 
-    Returns:
+    Returns
     -------
         dict: A dictionary containing the filename,
         success message, email, and ticket number.
@@ -213,33 +214,49 @@ async def upload_record(file: UploadFile = File(...), email: str = Form(...)):
         an error message is returned.
 
     """
-    # Check if the file is a .wav file
-    if file.content_type not in ["audio/wav"]:  # TODO: implement .mp3
-        return {"error": "Le fichier doit être un fichier audio .wav ou .mp3"}
-
-    file_content = await file.read()
-    file_name = file.filename
-    minio_path = f"{MINIO_BUCKET}/{file_name}"
-    ticket_number = str(uuid.uuid4())[:6]  # Generate a 6-character ticket number
-
+    # Validate the input using the Pydantic model
     try:
-        minio_client.stat_object(MINIO_BUCKET, file_name)
-        logging.info(f"File {file_name} already exists in MinIO.")
+        upload_data = UploadRecord(email=email, file=file)
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.errors())
+
+    # Generate paths
+    audio_path = upload_data.get_audio_path(MINIO_BUCKET)
+    annotation_path = upload_data.get_annotation_path(MINIO_BUCKET)
+    spectrogram_path = upload_data.get_spectrogram_path(MINIO_BUCKET)
+
+    # Read file content
+    file_content = await file.read()
+
+    # Upload file to MinIO
+    try:
+        minio_client.stat_object(MINIO_BUCKET, audio_path)
+        logging.info(f"File {audio_path} already exists in MinIO.")
     except Exception as e:
         logging.error(
-            f"File {file_name} does not exist in MinIO. Uploading... Error: {e!s}"
+            f"File {audio_path} does not exist in MinIO. Uploading... Error: {e!s}"
         )
+        write_file_to_minio(minio_client, MINIO_BUCKET, audio_path, file_content)
 
-        write_file_to_minio(minio_client, MINIO_BUCKET, file_name, file_content)
+    # Generate ticket number
+    ticket_number = str(uuid.uuid4())[:6]  # Generate a 6-character ticket number
 
-    message = {"minio_path": minio_path, "email": email, "ticket_number": ticket_number}
+    # Prepare message
+    message = {
+        "minio_path": audio_path,
+        "email": upload_data.email,
+        "ticket_number": ticket_number,
+        "annotation_path": annotation_path,
+        "spectrogram_path": spectrogram_path
+    }
 
+    # Publish message to RabbitMQ
     logging.info("Publishing message to RabbitMQ...")
     publish_message(rabbitmq_channel, FORWARDING_QUEUE, message)
 
     return {
-        "filename": file_name,
+        "filename": audio_path,
         "message": "Fichier enregistré avec succès",
-        "email": email,
+        "email": upload_data.email,
         "ticket_number": ticket_number,
     }

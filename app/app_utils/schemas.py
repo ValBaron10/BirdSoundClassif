@@ -1,32 +1,67 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 import os
+from pydantic import EmailStr, field_validator
+import uuid
+from fastapi import UploadFile
+from pydantic import ValidationError
 
-class FileSchema(BaseModel):
-    filetype: str
-    original_filename: str
+class UploadRecord(BaseModel):
+    email: EmailStr
+    file: UploadFile
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+    @field_validator('file')
+    def validate_file(cls, v):
+        if v.content_type not in ["audio/wav"]:
+            raise ValueError("Le fichier doit être un fichier audio .wav ou .mp3")
+        return v
 
     def generate_filename(self) -> str:
         """Generate a filename based on filetype and timestamp."""
         timestamp_str = self.timestamp.strftime("%Y%m%d%H%M%S%f")
-        return f"{timestamp_str}_{self.original_filename}"
+        return f"{timestamp_str}_{self.file.filename}"
 
     def generate_annotation_filename(self) -> str:
         """Generate an annotation filename based on filetype and timestamp."""
         timestamp_str = self.timestamp.strftime("%Y%m%d%H%M%S%f")
-        base_name = os.path.splitext(self.original_filename)[0]
+        base_name = os.path.splitext(self.file.filename)[0]
         return f"{timestamp_str}_{base_name}_annot.txt"
+    
+    def generate_spectrogram_filename(self) -> str:
+        """Generate a spectrogram filename based on filetype and timestamp."""
+        timestamp_str = self.timestamp.strftime("%Y%m%d%H%M%S%f")
+        base_name = os.path.splitext(self.file.filename)[0]
+        return f"{timestamp_str}_{base_name}_spectro.png"
+
+    def get_audio_path(self, root_folder: str) -> str:
+        """Generate the path for the audio file."""
+        return f"audio/{self.generate_filename()}"
+
+    def get_annotation_path(self, root_folder: str) -> str:
+        """Generate the path for the annotation file."""
+        return f"annotations/{self.generate_annotation_filename()}"
+
+    def get_spectrogram_path(self, root_folder: str) -> str:
+        """Generate the path for the spectrogram file."""
+        return f"spectrograms/{self.generate_spectrogram_filename()}"
+    
+       
 
 class AMQPMessage(BaseModel):
     ticket_number: str
     
-
-class ForwardMessage(AMQPMessage):
-    email: str
-    soundfile_minio_path: str
+    def generate_ticket_number(self):
+        self.ticket_number = str(uuid.uuid4())[:6]  # Generate a 6-character ticket number
     
 
-class FeedbackMessage(ForwardMessage):
+class InferenceMessage(AMQPMessage):
+    email: str
+    soundfile_minio_path: str
     annotations_minio_path: str
+    spectrogram_minio_path: str
+    
+
+class FeedbackMessage(InferenceMessage):
+    classification_score: float
     

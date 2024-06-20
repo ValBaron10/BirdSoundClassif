@@ -85,14 +85,14 @@ def callback(body) -> None:
 
 
 #################### ML I/O  ####################
-def run_inference_pipeline(minio_path, email, ticket_number) -> None:
+def run_inference_pipeline(minio_path, email, ticket_number, annotation_path, spectrogram_path) -> None:
     """Run inference pipeline, output classification and publish feedback message."""
     file_name = os.path.basename(minio_path)
     local_file_path = f"/tmp/{file_name}"  # Temporary local file path
 
     # Fetch the WAV file from MinIO and save it locally
     try:
-        minio_client.fget_object(MINIO_BUCKET, file_name, local_file_path)
+        minio_client.fget_object(MINIO_BUCKET, minio_path, local_file_path)
         logger.info(f"WAV file downloaded from MinIO: {file_name}")
     except Exception as e:
         logger.error(f"Error downloading WAV file from MinIO: {e!s}")
@@ -103,10 +103,7 @@ def run_inference_pipeline(minio_path, email, ticket_number) -> None:
     lines = inference.get_classification(local_file_path)
     logger.info(f"Classification output: {lines}")
 
-    file_name = os.path.splitext(file_name)[0] + ".txt"
     output = io.StringIO()
-
-
     for line in lines:
         output.write(line)
 
@@ -114,14 +111,14 @@ def run_inference_pipeline(minio_path, email, ticket_number) -> None:
     content_bytes = content.encode('utf-8')
     content_stream = io.BytesIO(content_bytes)
 
-    json_data = json.dumps(lines).encode("utf-8")
-    write_file_to_minio(minio_client, MINIO_BUCKET, file_name, content_stream)    
+    write_file_to_minio(minio_client, MINIO_BUCKET, annotation_path, content_stream)
 
     # Publish the message containing the MinIO paths, email, and ticket number
     # on the feedback channel
     message = {
-        "wav_minio_path": f"{MINIO_BUCKET}/{file_name}",
-        "json_minio_path": f"{file_name}",
+        "wav_minio_path": minio_path,
+        "annotation_minio_path": annotation_path,
+        "spectrogram_minio_path": spectrogram_path,
         "email": email,
         "ticket_number": ticket_number,
     }
