@@ -30,6 +30,8 @@ import json
 import logging
 import os
 import io
+import torch
+
 
 from app_utils.minio import write_file_to_minio
 from app_utils.rabbitmq import consume_messages, get_rabbit_connection, publish_message
@@ -37,6 +39,7 @@ from minio import Minio
 from model_serve.model_serve import ModelServer
 from pydantic import ValidationError
 from src.models.bird_dict import BIRD_DICT
+from app_utils.amqp_schemas import InferenceMessage, FeedbackMessage
 
 logging.basicConfig(
     level=logging.INFO,
@@ -72,26 +75,23 @@ minio_client = Minio(
 #################### QUEUE ####################
 def callback(body) -> None:
     """Trigger an inference pipeline run as RabbitMQ message callback."""
-
-    message = json.loads(body.decode())
-    
-    email = message["email"]
-    soundfile_minio_path = message["audiofile_path"]
-    annotations_minio_path = message["annotation_path"]
-    spectrogram_minio_path = message["spectrogram_path"]
-    ticket_number = message["ticket_number"]
-
+    try:
+        # Deserialize and validate the message using InferenceMessage
+        message = InferenceMessage.parse_raw(body.decode())
+    except ValidationError as e:
+        logger.error(f"Message validation error: {e}")
+        return
 
     logger.info(
-        f"Received message from RabbitMQ: MinIO path={soundfile_minio_path}, "
-        f"Email={email}, Ticket number={ticket_number}"
+        f"Received message from RabbitMQ: MinIO path={message.soundfile_minio_path}, "
+        f"Email={message.email}, Ticket number={message.ticket_number}"
     )
     run_inference_pipeline(
-        soundfile_minio_path,
-        email,
-        ticket_number,
-        annotations_minio_path,
-        spectrogram_minio_path
+        message.soundfile_minio_path,
+        message.email,
+        message.ticket_number,
+        message.annotations_minio_path,
+        message.spectrogram_minio_path
     )
 
 #################### ML I/O  ####################
@@ -110,29 +110,43 @@ def run_inference_pipeline(minio_path, email, ticket_number, annotation_path, sp
 
     inference = ModelServer(WEIGHTS_PATH, BIRD_DICT)
     inference.load()
-    lines = inference.get_classification(local_file_path)
+    lines, spectrogram = inference.get_classification(local_file_path, return_spectrogram=True)
     logger.info(f"Classification output: {lines}")
+
+    # Check if lines are empty
+    if not lines:
+        logger.error("No annotations found in the classification output.")
+        #return
 
     output = io.StringIO()
     for line in lines:
         output.write(line)
 
     content = output.getvalue()
+    logger.info(f"Annotation content: {content}")
+
     content_bytes = content.encode('utf-8')
     content_stream = io.BytesIO(content_bytes)
-
     write_file_to_minio(minio_client, MINIO_BUCKET, annotation_path, content_stream)
+    
+    if spectrogram:
+        spectrogram_buffer = io.BytesIO()
+        torch.save(spectrogram, spectrogram_buffer)
+        spectrogram_buffer.seek(0)
+        write_file_to_minio(minio_client, MINIO_BUCKET, spectrogram_path, spectrogram_buffer)
 
-    # Publish the message containing the MinIO paths, email, and ticket number
-    # on the feedback channel
-    message = {
-        "wav_minio_path": minio_path,
-        "annotation_minio_path": annotation_path,
-        "spectrogram_minio_path": spectrogram_path,
-        "email": email,
-        "ticket_number": ticket_number,
-    }
-    publish_message(rabbitmq_channel, FEEDBACK_QUEUE, message)
+    # Create a FeedbackMessage instance
+    feedback_message = FeedbackMessage(
+        soundfile_minio_path=minio_path,
+        email=email,
+        ticket_number=ticket_number,
+        annotations_minio_path=annotation_path,
+        spectrogram_minio_path=spectrogram_path,
+        classification_score=None  # Set this to the actual classification score if available
+    )
+
+    # Publish the feedback message to RabbitMQ
+    publish_message(rabbitmq_channel, FEEDBACK_QUEUE, feedback_message.dict())
 
 
 #################### MAIN LOOP ####################

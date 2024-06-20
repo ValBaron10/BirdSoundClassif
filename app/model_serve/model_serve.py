@@ -85,6 +85,7 @@ class ModelServer:
         self.detection_ready = True
 
         return fp, outputs, spectrogram
+    
 
     def get_classification(self, file_path, return_spectrogram=False):
         """Get classification results for an audio file.
@@ -111,16 +112,14 @@ class ModelServer:
             if len(class_bbox[str(idx)]["bbox_coord"]) > 0
         }
 
-        lines = get_detections_times_and_freqs(
-            output, fp, spectrogram, self.reverse_bird_dict
-        )
-
+        lines = get_detections_times_and_freqs(output, fp, spectrogram, self.reverse_bird_dict)
         logger.info(f"[lines]: \n{lines}")
+        
+        logger.info(f"[SPECTROGRAM]: {spectrogram}")
         if False:
             visualise_model_out(output, fp, spectrogram, self.reverse_bird_dict)
-            # TODO: enregistrer le spectrogram
-        return lines
+        
+        
+        return lines, spectrogram
 
 
-# TODO ensure bird name is given as output
-# TODO unload model method
