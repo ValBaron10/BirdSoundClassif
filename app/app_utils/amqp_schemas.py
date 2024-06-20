@@ -5,9 +5,6 @@ from pydantic import BaseModel
 class AMQPMessage(BaseModel):
     ticket_number: str
     
-    def generate_ticket_number(self):
-        self.ticket_number = str(uuid.uuid4())[:6]  # Generate a 6-character ticket number
-    
 
 class InferenceMessage(AMQPMessage):
     email: str
@@ -17,4 +14,4 @@ class InferenceMessage(AMQPMessage):
     
 
 class FeedbackMessage(InferenceMessage):
-    classification_score: float
+    classification_score: float | None = None
