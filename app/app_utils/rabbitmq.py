@@ -188,7 +188,7 @@ async def process_feedback_message(body, minio_client, minio_bucket) -> None:
     spectrogram_minio_path = feedback_message.spectrogram_minio_path
     classification_score = feedback_message.classification_score
 
-    async with get_async_session() as session:
+    async for session in get_async_session():
         service_call = await crud.create_service_call(
             session, email, ticket_number, soundfile_minio_path
         )
@@ -201,7 +201,7 @@ async def process_feedback_message(body, minio_client, minio_bucket) -> None:
         )
 
     send_email(email, annotations_minio_path, ticket_number, minio_client, minio_bucket)
-
+    
 async def consume_feedback_messages(
     rabbitmq_channel, feedback_queue, minio_client, minio_bucket, stop_event=None
 ) -> None:
@@ -232,7 +232,7 @@ async def consume_feedback_messages(
     while True:
         method_frame, _, body = rabbitmq_channel.basic_get(queue=feedback_queue)
         if method_frame:
-            process_feedback_message(body, minio_client, minio_bucket)
+            await process_feedback_message(body, minio_client, minio_bucket)  # Await the coroutine
             rabbitmq_channel.basic_ack(delivery_tag=method_frame.delivery_tag)
             if stop_event and stop_event.is_set():
                 break

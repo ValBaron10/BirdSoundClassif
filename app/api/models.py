@@ -33,7 +33,7 @@ class InferenceResult(Base):
     annotation_path: Mapped[str] = mapped_column(String, nullable=False)
     spectrogram_path: Mapped[str] = mapped_column(String, nullable=False)
     bird_id: Mapped[int] = mapped_column(Integer, nullable=True)
-    classif_score: Mapped[float] = mapped_column(Float, nullable=True)
+    classification_score: Mapped[float] = mapped_column(Float, nullable=True)
     service_call: Mapped["ServiceCall"] = relationship(
         "ServiceCall", back_populates="inference_results"
     )

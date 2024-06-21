@@ -10,13 +10,15 @@ from app_utils.rabbitmq import (
     get_rabbit_connection,
     publish_message,
 )
-from api.database import create_db_and_tables, get_engine, get_session_maker
+from api.database import create_db_and_tables, engine, get_async_session
 from app_utils.file_schemas import UploadRecord
 from app_utils.amqp_schemas import InferenceMessage
 from fastapi import FastAPI, File, Form, UploadFile
 from minio import Minio
 from pydantic import ValidationError
-from config import BaseConfig  # Import the configuration class
+from config import BaseConfig
+
+from api import crud
 
 logging.basicConfig(level=logging.INFO)
 
@@ -24,8 +26,7 @@ app = FastAPI()
 
 config = BaseConfig() # environment settings
 config.log_config()
-# logging.info(f"Configuration: MINIO_ENDPOINT={config.MINIO_ENDPOINT}," 
-#              f"MINIO_BUCKET={config.MINIO_BUCKET}")
+
 
 minio_client = None
 rabbitmq_connection = None
@@ -75,7 +76,13 @@ async def startup_event() -> None:
 
     """
     initialize_clients()
-    await create_db_and_tables(engine)
+    
+    await create_db_and_tables()
+    
+    async for session in get_async_session():
+        async with session.begin():
+            await crud.populate_bird_table(session)
+    
     asyncio.create_task(
         consume_feedback_messages(
             rabbitmq_channel, config.FEEDBACK_QUEUE, minio_client, config.MINIO_BUCKET
@@ -91,7 +98,6 @@ def healthcheck() -> dict:
 
     Returns
     -------
-        dict: {"status": "ok"}.
 
     """
     return {"status": "ok"}

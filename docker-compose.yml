@@ -118,6 +118,23 @@ services:
     restart: always
 
 
+  pgadmin:
+    image: dpage/pgadmin4
+    volumes:
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json
+    ports:
+      - "5051:80"
+    depends_on:
+      - postgres
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: password
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    networks:
+      - internal
+
+
+
 #============ [VOLUMES / NETWORKS] ============#
 volumes:
   minio-data:
