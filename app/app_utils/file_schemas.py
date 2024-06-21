@@ -32,7 +32,7 @@ class UploadRecord(BaseModel):
         """Generate a spectrogram filename based on filetype and timestamp."""
         timestamp_str = self.timestamp.strftime("%Y%m%d%H%M%S%f")
         base_name = os.path.splitext(self.file.filename)[0]
-        return f"{timestamp_str}_{base_name}_spectro.png"
+        return f"{timestamp_str}_{base_name}_spectro.pt"
 
     def get_audio_path(self, root_folder: str) -> str:
         """Generate the path for the audio file."""

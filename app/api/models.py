@@ -8,6 +8,7 @@ class Bird(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
 
+
 class ServiceCall(Base):
     __tablename__ = 'service_calls'
     
