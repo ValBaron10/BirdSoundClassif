@@ -26,7 +26,7 @@ def get_args_parser():
     parser = argparse.ArgumentParser('Set transformer detector', add_help=False)
     parser.add_argument('--lr', default=1e-4, type=float)
     parser.add_argument('--lr_backbone', default=1e-5, type=float)
-    parser.add_argument('--batch_size', default=2, type=int)
+    parser.add_argument('--batch_size', default=1, type=int)
     parser.add_argument('--weight_decay', default=1e-4, type=float)
     parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--lr_drop', default=383, type=int)
@@ -83,7 +83,7 @@ def get_args_parser():
     parser.add_argument('--eos_coef', default=0.1, type=float,
                         help="Relative classification weight of the no-object class")
 
-    parser.add_argument('--device', default='cuda',
+    parser.add_argument('--device', default='cpu',
                         help='device to use for training / testing')
     # parser.add_argument('--seed', default=42, type=int)
     # parser.add_argument('--resume', default='', help='resume from checkpoint')
@@ -94,10 +94,10 @@ def get_args_parser():
 
     ###
     parser.add_argument('--model_name', default='new_model', type=str)
-    parser.add_argument('--data_path', default='dataset', type=str)
+    parser.add_argument('--data_path', default='data/processed', type=str)
     parser.add_argument('--save_dir', default='models_detr', type=str)
-    parser.add_argument('--pretrained_dir', default='pretr_weights', type=str)
-    parser.add_argument('--max_steps', default=5e5, type=float)
+    parser.add_argument('--pretrained_dir', default='models/pretr_weights', type=str)
+    parser.add_argument('--max_steps', default=500, type=float)
     parser.add_argument('--first_neg_step', default=1e5, type=float)
     parser.add_argument('--neg_step_freq', default=10, type=int)
     parser.add_argument('--save_step', default=None, type=float)
@@ -237,7 +237,7 @@ def main(args):
     train_sampler = SubsetRandomSampler(train_indices)
     valid_sampler = SubsetRandomSampler(val_indices)
     train_loader = DataLoader(dataset, batch_size=args.batch_size, sampler=train_sampler, collate_fn=collate_fn, num_workers=args.num_workers)
-    validation_loader = DataLoader(dataset, batch_size=4 * args.batch_size, sampler=valid_sampler, collate_fn=collate_fn,
+    validation_loader = DataLoader(dataset, batch_size=args.batch_size, sampler=valid_sampler, collate_fn=collate_fn,
      num_workers=args.num_workers, drop_last=True)
 
     print("Start training")
@@ -254,7 +254,7 @@ def main(args):
         'cardinality_error': 0
     }
 
-    save_steps = [150e3, 200e3, 250e3] # args.save_step
+    save_steps = [50, 100, 250] # args.save_step
     while steps < args.max_steps:
 
         for batch in train_loader:
@@ -280,6 +280,7 @@ def main(args):
             if steps % 200 == 0:
                 model.eval(), criterion.eval()
                 val_cls_loss, val_reg_loss, val_giou_loss, val_card_error = 0, 0, 0, 0
+                count = 0
                 for i, valid_batch in enumerate(validation_loader):
                     with torch.no_grad():
                         loss_dict = step(model, criterion, valid_batch, device, negative_sample=False)
@@ -287,10 +288,11 @@ def main(args):
                     val_reg_loss += loss_dict['loss_bbox'].item()
                     val_giou_loss += loss_dict['loss_giou'].item()
                     val_card_error += loss_dict['cardinality_error'].item()
-                val_cls_loss /= i
-                val_reg_loss /= i
-                val_giou_loss /= i
-                val_card_error /= i
+                    count += 1
+                val_cls_loss /= count
+                val_reg_loss /= count
+                val_giou_loss /= count
+                val_card_error /= count
                 with torch.no_grad():
                     loss_dict = step(model, criterion, valid_batch, device, negative_sample=True)
                 val_neg_cls_loss = loss_dict['loss_neg_ce'].item()
