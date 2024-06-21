@@ -1,5 +1,4 @@
 
-Copy code
 import asyncio
 import logging
 import os
@@ -11,6 +10,7 @@ from app_utils.rabbitmq import (
     get_rabbit_connection,
     publish_message,
 )
+from api.database import create_db_and_tables, get_engine, get_session_maker
 from app_utils.file_schemas import UploadRecord
 from app_utils.amqp_schemas import InferenceMessage
 from fastapi import FastAPI, File, Form, UploadFile
@@ -23,18 +23,20 @@ logging.basicConfig(level=logging.INFO)
 app = FastAPI()
 
 config = BaseConfig() # environment settings
-
-logging.info(f"Configuration: MINIO_ENDPOINT={config.MINIO_ENDPOINT}," 
-             f"MINIO_BUCKET={config.MINIO_BUCKET}")
+config.log_config()
+# logging.info(f"Configuration: MINIO_ENDPOINT={config.MINIO_ENDPOINT}," 
+#              f"MINIO_BUCKET={config.MINIO_BUCKET}")
 
 minio_client = None
 rabbitmq_connection = None
 rabbitmq_channel = None
 
+
+#################### CLIENTS ####################
 def initialize_clients():
     global minio_client, rabbitmq_connection, rabbitmq_channel
 
-    #################### STORAGE ####################
+    #======# STORAGE #======#
     logging.info("Initializing MinIO client...")
     minio_client = Minio(
         config.MINIO_ENDPOINT,
@@ -45,7 +47,7 @@ def initialize_clients():
     logging.info("Checking if bucket exists...")
     ensure_bucket_exists(minio_client, config.MINIO_BUCKET)
 
-    #################### FORWARDING QUEUE ####################
+    #======# FORWARDING QUEUE #======#
     logging.info("Connecting to RabbitMQ...")
     rabbitmq_connection = get_rabbit_connection(config.RABBITMQ_HOST, config.RABBITMQ_PORT)
     rabbitmq_channel = rabbitmq_connection.channel()
@@ -53,9 +55,10 @@ def initialize_clients():
     logging.info(f"Declaring queue: {config.FORWARDING_QUEUE}")
     rabbitmq_channel.queue_declare(queue=config.FORWARDING_QUEUE)
 
-    #################### FEEDBACK QUEUE ####################
+    #======# FEEDBACK QUEUE #======#
     logging.info(f"Declaring queue: {config.FEEDBACK_QUEUE}")
     rabbitmq_channel.queue_declare(queue=config.FEEDBACK_QUEUE)
+
 
 @app.on_event("startup")
 async def startup_event() -> None:
@@ -72,12 +75,13 @@ async def startup_event() -> None:
 
     """
     initialize_clients()
+    await create_db_and_tables(engine)
     asyncio.create_task(
         consume_feedback_messages(
             rabbitmq_channel, config.FEEDBACK_QUEUE, minio_client, config.MINIO_BUCKET
         )
     )
-
+    
 #################### ROUTES ####################
 @app.get("/healthcheck")
 def healthcheck() -> dict:

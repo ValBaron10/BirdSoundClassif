@@ -17,6 +17,7 @@ from app_utils.amqp_schemas import FeedbackMessage
 from app_utils.minio import fetch_file_contents_from_minio
 from app_utils.smtplib import send_email
 
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
@@ -155,7 +156,7 @@ def consume_messages(channel, queue_name, callback) -> None:
 
 
 
-def process_feedback_message(body, minio_client, minio_bucket) -> None:
+async def process_feedback_message(body, minio_client, minio_bucket) -> None:
     """Process a feedback message received from RabbitMQ.
 
     This function extracts the email, annotations MinIO path, and ticket number from the message body.
@@ -172,8 +173,9 @@ def process_feedback_message(body, minio_client, minio_bucket) -> None:
         None
 
     """
+    from api import crud
+    from api.database import get_async_session
     try:
-        # Deserialize and validate the message using FeedbackMessage
         feedback_message = FeedbackMessage.parse_raw(body.decode())
     except ValidationError as e:
         logging.error(f"Message validation error: {e}")
@@ -182,8 +184,22 @@ def process_feedback_message(body, minio_client, minio_bucket) -> None:
     email = feedback_message.email
     annotations_minio_path = feedback_message.annotations_minio_path
     ticket_number = feedback_message.ticket_number
+    soundfile_minio_path = feedback_message.soundfile_minio_path
+    spectrogram_minio_path = feedback_message.spectrogram_minio_path
+    classification_score = feedback_message.classification_score
 
-    # Send the email with the MinIO path
+    async with get_async_session() as session:
+        service_call = await crud.create_service_call(
+            session, email, ticket_number, soundfile_minio_path
+        )
+        await crud.create_inference_result(
+            session, 
+            service_call.id, 
+            annotations_minio_path, 
+            spectrogram_minio_path, 
+            classification_score
+        )
+
     send_email(email, annotations_minio_path, ticket_number, minio_client, minio_bucket)
 
 async def consume_feedback_messages(
