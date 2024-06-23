@@ -1,34 +1,3 @@
-"""API Module.
-
-This module implements the API endpoints 
-for the bird sound classification application.
-It provides endpoints for uploading audio files, 
-storing them in MinIO, and publishing messages
-to RabbitMQ queues for further processing. 
-It also consumes feedback messages from a RabbitMQ
-queue and handles them accordingly.
-
-The module relies on the following dependencies:
-
-app_utils.minio: Provides utility functions for interacting with MinIO.
-app_utils.rabbitmq: Provides utility functions for interacting with RabbitMQ.
-fastapi: A web framework for building APIs with Python.
-minio: A library for interacting with MinIO object storage.
-Example usage:
-
-Set the required environment variables for RabbitMQ, MinIO, and other configurations.
-Run the API server: uvicorn app.main:app --reload
-Access the API endpoints using a web browser or an API client.
-Available endpoints:
-
-/healthcheck: Returns the health status of the application.
-/upload-dev: Simulates the upload of a default audio file 
-and publishes a message to RabbitMQ.
-/upload: Allows users to upload an audio file and publishes a message to RabbitMQ.
-Note: Make sure to have the necessary dependencies installed 
-and the required environment variables set before running the application.
-
-"""
 
 import asyncio
 import logging
@@ -41,59 +10,64 @@ from app_utils.rabbitmq import (
     get_rabbit_connection,
     publish_message,
 )
+from api.database import create_db_and_tables, engine, get_async_session
+from app_utils.file_schemas import UploadRecord
+from app_utils.amqp_schemas import InferenceMessage
 from fastapi import FastAPI, File, Form, UploadFile
 from minio import Minio
+from pydantic import ValidationError
+from config import BaseConfig
+
+from api import crud
 
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
 
-#################### CONFIG ####################
-logging.info("Loading environment variables...")
-MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT")
-MINIO_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
-MINIO_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-MINIO_BUCKET = os.getenv("MINIO_BUCKET")
-RABBITMQ_HOST = os.getenv("RABBITMQ_HOST")
-RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT", "5672"))
-FORWARDING_QUEUE = os.getenv("RABBITMQ_QUEUE_API2INF")
-FEEDBACK_QUEUE = os.getenv("RABBITMQ_QUEUE_INF2API")
+config = BaseConfig() # environment settings
+config.log_config()
 
-logging.info(
-    f"Configuration: MINIO_ENDPOINT={MINIO_ENDPOINT}, MINIO_BUCKET={MINIO_BUCKET}"
-)
 
-#################### STORAGE ####################
-logging.info("Initializing MinIO client...")
-minio_client = Minio(
-    MINIO_ENDPOINT,
-    access_key=MINIO_ACCESS_KEY,
-    secret_key=MINIO_SECRET_KEY,
-    secure=False,
-)
-logging.info("Checking if bucket exists...")
-ensure_bucket_exists(minio_client, MINIO_BUCKET)
+minio_client = None
+rabbitmq_connection = None
+rabbitmq_channel = None
 
-#################### FORWARDING QUEUE ####################
-logging.info("Connecting to RabbitMQ...")
-rabbitmq_connection = get_rabbit_connection(RABBITMQ_HOST, RABBITMQ_PORT)
-rabbitmq_channel = rabbitmq_connection.channel()
 
-logging.info(f"Declaring queue: {FORWARDING_QUEUE}")
-rabbitmq_channel.queue_declare(queue=FORWARDING_QUEUE)
+#################### CLIENTS ####################
+def initialize_clients():
+    global minio_client, rabbitmq_connection, rabbitmq_channel
 
-#################### FEEDBACK QUEUE ####################
-logging.info(f"Declaring queue: {FEEDBACK_QUEUE}")
-rabbitmq_channel.queue_declare(queue=FEEDBACK_QUEUE)
+    #======# STORAGE #======#
+    logging.info("Initializing MinIO client...")
+    minio_client = Minio(
+        config.MINIO_ENDPOINT,
+        access_key=config.MINIO_ACCESS_KEY,
+        secret_key=config.MINIO_SECRET_KEY,
+        secure=False,
+    )
+    logging.info("Checking if bucket exists...")
+    ensure_bucket_exists(minio_client, config.MINIO_BUCKET)
+
+    #======# FORWARDING QUEUE #======#
+    logging.info("Connecting to RabbitMQ...")
+    rabbitmq_connection = get_rabbit_connection(config.RABBITMQ_HOST, config.RABBITMQ_PORT)
+    rabbitmq_channel = rabbitmq_connection.channel()
+
+    logging.info(f"Declaring queue: {config.FORWARDING_QUEUE}")
+    rabbitmq_channel.queue_declare(queue=config.FORWARDING_QUEUE)
+
+    #======# FEEDBACK QUEUE #======#
+    logging.info(f"Declaring queue: {config.FEEDBACK_QUEUE}")
+    rabbitmq_channel.queue_declare(queue=config.FEEDBACK_QUEUE)
 
 
 @app.on_event("startup")
 async def startup_event() -> None:
     """Startup event handler.
 
-    This function is called when the application starts up. 
+    This function is called when the application starts up.
     It creates a task to consume feedback messages
-    from the specified RabbitMQ queue using the provided RabbitMQ channel, 
+    from the specified RabbitMQ queue using the provided RabbitMQ channel,
     MinIO client, and MinIO bucket.
 
     Returns
@@ -101,13 +75,20 @@ async def startup_event() -> None:
         None
 
     """
+    initialize_clients()
+    
+    await create_db_and_tables()
+    
+    async for session in get_async_session():
+        async with session.begin():
+            await crud.populate_bird_table(session)
+    
     asyncio.create_task(
         consume_feedback_messages(
-            rabbitmq_channel, FEEDBACK_QUEUE, minio_client, MINIO_BUCKET
+            rabbitmq_channel, config.FEEDBACK_QUEUE, minio_client, config.MINIO_BUCKET
         )
     )
-
-
+    
 #################### ROUTES ####################
 @app.get("/healthcheck")
 def healthcheck() -> dict:
@@ -117,11 +98,9 @@ def healthcheck() -> dict:
 
     Returns
     -------
-        dict: {"status": "ok"}.
 
     """
     return {"status": "ok"}
-
 
 @app.get("/upload-dev")
 async def upload_dev(email: str) -> dict:
@@ -136,18 +115,18 @@ async def upload_dev(email: str) -> dict:
     ----
         email (str): The email address associated with the upload.
 
-    Returns:
+    Returns
     -------
         dict: A dictionary containing the filename, success message, email, and ticket number.
 
     """
     file_path = "api/Turdus_merlula.wav"
     file_name = file_path.split("/")[-1]
-    minio_path = f"{MINIO_BUCKET}/{file_name}"
+    minio_path = f"{config.MINIO_BUCKET}/{file_name}"
     ticket_number = str(uuid.uuid4())[:6]  # Generate a 6-character ticket number
 
     try:
-        minio_client.stat_object(MINIO_BUCKET, file_name)
+        minio_client.stat_object(config.MINIO_BUCKET, file_name)
         logging.info(f"File {file_name} already exists in MinIO.")
     except Exception as e:
         logging.error(
@@ -160,7 +139,7 @@ async def upload_dev(email: str) -> dict:
 
         write_file_to_minio(
             minio_client,
-            MINIO_BUCKET,
+            config.MINIO_BUCKET,
             file_name,
             file_content,  # Pass the file content as the data argument
         )
@@ -168,7 +147,7 @@ async def upload_dev(email: str) -> dict:
     message = {"minio_path": minio_path, "email": email, "ticket_number": ticket_number}
 
     logging.info("Publishing message to RabbitMQ...")
-    publish_message(rabbitmq_channel, FORWARDING_QUEUE, message)
+    publish_message(rabbitmq_channel, config.FORWARDING_QUEUE, message)
 
     return {
         "filename": "Turdus_merlula.wav",
@@ -176,7 +155,6 @@ async def upload_dev(email: str) -> dict:
         "email": email,
         "ticket_number": ticket_number,
     }
-
 
 @app.post("/upload")
 async def upload_record(file: UploadFile = File(...), email: str = Form(...)):
@@ -193,44 +171,60 @@ async def upload_record(file: UploadFile = File(...), email: str = Form(...)):
         file (UploadFile): The audio file to be uploaded. It should be a .wav file.
         email (str): The email address associated with the upload.
 
-    Returns:
+    Returns
     -------
-        dict: A dictionary containing the filename, 
+        dict: A dictionary containing the filename,
         success message, email, and ticket number.
 
     Raises:
     ------
-        HTTPException: If the uploaded file is not a .wav file, 
+        HTTPException: If the uploaded file is not a .wav file,
         an error message is returned.
 
     """
-    # Check if the file is a .wav file
-    if file.content_type not in ["audio/wav"]:  # TODO: implement .mp3
-        return {"error": "Le fichier doit être un fichier audio .wav ou .mp3"}
-
-    file_content = await file.read()
-    file_name = file.filename
-    minio_path = f"{MINIO_BUCKET}/{file_name}"
-    ticket_number = str(uuid.uuid4())[:6]  # Generate a 6-character ticket number
-
+    # Validate the input using the Pydantic model
     try:
-        minio_client.stat_object(MINIO_BUCKET, file_name)
-        logging.info(f"File {file_name} already exists in MinIO.")
+        upload_data = UploadRecord(email=email, file=file)
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.errors())
+
+    # Generate paths
+    audio_path = upload_data.get_audio_path(config.MINIO_BUCKET)
+    annotation_path = upload_data.get_annotation_path(config.MINIO_BUCKET)
+    spectrogram_path = upload_data.get_spectrogram_path(config.MINIO_BUCKET)
+
+    # Read file content
+    file_content = await file.read()
+
+    # Upload file to MinIO
+    try:
+        minio_client.stat_object(config.MINIO_BUCKET, audio_path)
+        logging.info(f"File {audio_path} already exists in MinIO.")
     except Exception as e:
         logging.error(
-            f"File {file_name} does not exist in MinIO. Uploading... Error: {e!s}"
+            f"File {audio_path} does not exist in MinIO. Uploading... Error: {e!s}"
         )
+        write_file_to_minio(minio_client, config.MINIO_BUCKET, audio_path, file_content)
 
-        write_file_to_minio(minio_client, MINIO_BUCKET, file_name, file_content)
+    ticket_number = str(uuid.uuid4())[:6]  # Generate a 6-character ticket number
 
-    message = {"minio_path": minio_path, "email": email, "ticket_number": ticket_number}
+    # Prepare message data
+    message_data = {
+        "soundfile_minio_path": audio_path,
+        "email": upload_data.email,
+        "ticket_number": ticket_number,
+        "annotations_minio_path": annotation_path,
+        "spectrogram_minio_path": spectrogram_path
+    }
+    message = InferenceMessage(**message_data)
 
+    # Publish message to RabbitMQ
     logging.info("Publishing message to RabbitMQ...")
-    publish_message(rabbitmq_channel, FORWARDING_QUEUE, message)
+    publish_message(rabbitmq_channel, config.FORWARDING_QUEUE, message.dict())
 
     return {
-        "filename": file_name,
+        "filename": audio_path,
         "message": "Fichier enregistré avec succès",
-        "email": email,
-        "ticket_number": ticket_number,
+        "email": upload_data.email,
+        "ticket_number": message.ticket_number,
     }

@@ -3,7 +3,7 @@ version: "3.9"
 # Shared set of env variables (secret variables are fetched from `.env` file)
 x-common-env: &common-env
   environment:
-    - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME:-matthieujln}
+    - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME}
 
     - RABBITMQ_HOST=rabbitmq
     - RABBITMQ_PORT=5672
@@ -21,7 +21,14 @@ x-common-env: &common-env
     - MINIO_ROOT_USER=${MINIO_ROOT_USER}
     - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
 
+    - POSTGRES_USER=${POSTGRES_USER}
+    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    - POSTGRES_HOST=${POSTGRES_HOST}
+    - POSTGRES_PORT=${POSTGRES_PORT}
+    - POSTGRES_DB=${POSTGRES_DB}
+
     - MH_LOG_LEVEL=error
+
 
 services:
 #============ [MAIN SERVICES] ============#
@@ -35,6 +42,7 @@ services:
       - minioserver
     networks:
       - internal
+    # entrypoint: ["/docker/api/entrypoint"]
     command: sh -c "sleep 5 && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
     restart: always
 
@@ -46,10 +54,25 @@ services:
       - minioserver
     networks:
       - internal
-    command: sh -c "sleep 5 && python3 inference/main.py"
+    command: sh -c "sleep 5 && python3 inference/worker.py"
     restart: always
 
 #============ [BACKING SERVICES] ============#
+  postgres:
+    <<: *common-env
+    image: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - internal
+    ports:
+      - "5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   rabbitmq:
     # RabbitMQ: container to container async messenger
     <<: *common-env
@@ -95,9 +118,27 @@ services:
     restart: always
 
 
+  pgadmin:
+    image: dpage/pgadmin4
+    volumes:
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json
+    ports:
+      - "5051:80"
+    depends_on:
+      - postgres
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: password
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    networks:
+      - internal
+
+
+
 #============ [VOLUMES / NETWORKS] ============#
 volumes:
   minio-data:
+  postgres-data:
 
 networks:
   internal:

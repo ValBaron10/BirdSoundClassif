@@ -5,11 +5,11 @@ WORKDIR /app
 
 # Development:
 RUN apt-get -y update && apt-get -y upgrade && apt-get install -y ffmpeg
-COPY ./requirements.txt . 
+COPY ./requirements.txt .
 RUN pip install -r requirements.txt
 
 
-COPY . /app 
+COPY . /app
 
 
 # production:

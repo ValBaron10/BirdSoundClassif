@@ -4,7 +4,7 @@
 DOCKER_ACCOUNT ?= matthieujln
 
 #===================================#
-#       BUILD DOCKER IMAGES			
+#       BUILD DOCKER IMAGES
 #===================================#
 build-base:
 	cd docker/base && ./build.sh $(DOCKER_ACCOUNT)
@@ -15,7 +15,7 @@ build-api:
 build-inference:
 	cd docker/inference && ./build.sh $(DOCKER_ACCOUNT)
 
-build-all: 
+build-all:
 	$(MAKE) build-base
 	$(MAKE) build-api
 	$(MAKE) build-inference
@@ -33,14 +33,14 @@ push-api:
 push-inference:
 	cd docker/inference && ./push.sh $(DOCKER_ACCOUNT)
 
-push-all: 
+push-all:
 	$(MAKE) push-base
 	$(MAKE) push-api
 	$(MAKE) push-inference
 
 
 #===================================#
-#       DOCKER COMPOSE			
+#       DOCKER COMPOSE
 #===================================#
 run-api:
 	DOCKERHUB_USERNAME=$(DOCKER_ACCOUNT) docker compose up api
@@ -58,8 +58,26 @@ teardown:
 	docker compose down -v
 
 
+
 #===================================#
-#       DEV COMMANDS			
+#           CI TOOLS
+#===================================#
+install-ci-tools:
+	pip install -r requirements_ci.txt
+
+
+format:
+	ruff format .
+
+lint:
+	ruff check --fix .
+
+run-pre-commit:
+	pre-commit run --all-files
+	pre-commit run --all-files
+
+#===================================#
+#       DEV COMMANDS
 #===================================#
 upload-dev:
 	curl -X 'GET' \
