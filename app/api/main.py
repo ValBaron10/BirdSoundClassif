@@ -178,7 +178,7 @@ async def upload_dev(email: str) -> dict:
     }
 
 
-@app.post("/upload")
+@app.get("/upload")
 async def upload_record(file: UploadFile = File(...), email: str = Form(...)):
     """Upload a record endpoint.
 
