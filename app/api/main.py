@@ -178,77 +178,59 @@ async def upload_dev(email: str) -> dict:
     }
 
 
-# @app.post("/upload")
-# async def upload_record(file: UploadFile = File(...), email: str = Form(...)):
-#     """Upload a record endpoint.
-
-#     Allows users to upload an audio file (.wav) along with their email address.
-#     Checks if the file is a valid .wav file, reads the file content,
-#     and generates a unique ticket number.
-#     The file is then uploaded to MinIO, and a message is published
-#     to the specified RabbitMQ queue for further processing.
-
-#     Args:
-#     ----
-#         file (UploadFile): The audio file to be uploaded. It should be a .wav file.
-#         email (str): The email address associated with the upload.
-
-#     Returns:
-#     -------
-#         dict: A dictionary containing the filename, 
-#         success message, email, and ticket number.
-
-#     Raises:
-#     ------
-#         HTTPException: If the uploaded file is not a .wav file, 
-#         an error message is returned.
-
-#     """
-#     # Check if the file is a .wav file
-#     if file.content_type not in ["audio/wav"]:  # TODO: implement .mp3
-#         return {"error": "Le fichier doit être un fichier audio .wav ou .mp3"}
-
-#     file_content = await file.read()
-#     file_name = file.filename
-#     minio_path = f"{MINIO_BUCKET}/{file_name}"
-#     ticket_number = str(uuid.uuid4())[:6]  # Generate a 6-character ticket number
-
-#     try:
-#         minio_client.stat_object(MINIO_BUCKET, file_name)
-#         logging.info(f"File {file_name} already exists in MinIO.")
-#     except Exception as e:
-#         logging.error(
-#             f"File {file_name} does not exist in MinIO. Uploading... Error: {e!s}"
-#         )
-
-#         write_file_to_minio(minio_client, MINIO_BUCKET, file_name, file_content)
-
-#     message = {"minio_path": minio_path, "email": email, "ticket_number": ticket_number}
-
-#     logging.info("Publishing message to RabbitMQ...")
-#     publish_message(rabbitmq_channel, FORWARDING_QUEUE, message)
-
-#     return {
-#         "filename": file_name,
-#         "message": "Fichier enregistré avec succès",
-#         "email": email,
-#         "ticket_number": ticket_number,
-#     }
-
-
 @app.post("/upload")
 async def upload_record(file: UploadFile = File(...), email: str = Form(...)):
+    """Upload a record endpoint.
+
+    Allows users to upload an audio file (.wav) along with their email address.
+    Checks if the file is a valid .wav file, reads the file content,
+    and generates a unique ticket number.
+    The file is then uploaded to MinIO, and a message is published
+    to the specified RabbitMQ queue for further processing.
+
+    Args:
+    ----
+        file (UploadFile): The audio file to be uploaded. It should be a .wav file.
+        email (str): The email address associated with the upload.
+
+    Returns:
+    -------
+        dict: A dictionary containing the filename, 
+        success message, email, and ticket number.
+
+    Raises:
+    ------
+        HTTPException: If the uploaded file is not a .wav file, 
+        an error message is returned.
+
+    """
     # Check if the file is a .wav file
     if file.content_type not in ["audio/wav"]:  # TODO: implement .mp3
         return {"error": "Le fichier doit être un fichier audio .wav ou .mp3"}
 
     file_content = await file.read()
     file_name = file.filename
+    minio_path = f"{MINIO_BUCKET}/{file_name}"
+    ticket_number = str(uuid.uuid4())[:6]  # Generate a 6-character ticket number
 
-    print(file_name)
+    # try:
+    #     minio_client.stat_object(MINIO_BUCKET, file_name)
+    #     logging.info(f"File {file_name} already exists in MinIO.")
+    # except Exception as e:
+    #     logging.error(
+    #         f"File {file_name} does not exist in MinIO. Uploading... Error: {e!s}"
+    #     )
+
+    #     write_file_to_minio(minio_client, MINIO_BUCKET, file_name, file_content)
+
+    # message = {"minio_path": minio_path, "email": email, "ticket_number": ticket_number}
+
+    # logging.info("Publishing message to RabbitMQ...")
+    # publish_message(rabbitmq_channel, FORWARDING_QUEUE, message)
 
     return {
         "filename": file_name,
         "message": "Fichier enregistré avec succès",
-        "email": email
+        "email": email,
+        "ticket_number": ticket_number,
     }
