@@ -221,12 +221,12 @@ async def upload_record(file: UploadFile = File(...), email: str = Form(...)):
     #         f"File {file_name} does not exist in MinIO. Uploading... Error: {e!s}"
     #     )
 
-    write_file_to_minio(minio_client, MINIO_BUCKET, file_name, file_content)
+    # write_file_to_minio(minio_client, MINIO_BUCKET, file_name, file_content)
 
-    message = {"minio_path": minio_path, "email": email, "ticket_number": ticket_number}
+    # message = {"minio_path": minio_path, "email": email, "ticket_number": ticket_number}
 
-    logging.info("Publishing message to RabbitMQ...")
-    publish_message(rabbitmq_channel, FORWARDING_QUEUE, message)
+    # logging.info("Publishing message to RabbitMQ...")
+    # publish_message(rabbitmq_channel, FORWARDING_QUEUE, message)
 
     return {
         "filename": file_name,
