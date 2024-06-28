@@ -10,9 +10,11 @@ import asyncio
 import json
 import logging
 import time
-
+from pydantic import ValidationError
 import pika
 
+from app_utils.amqp_schemas import FeedbackMessage
+from app_utils.minio import fetch_file_contents_from_minio
 from app_utils.smtplib import send_email
 
 logging.basicConfig(
@@ -91,28 +93,6 @@ def get_rabbit_connection(host, port) -> pika.BlockingConnection:
     return rabbit_connection
 
 
-def publish_minio_path(channel, queue_name, minio_path) -> None:
-    """Publish a MinIO path to a specified RabbitMQ queue.
-
-    Args:
-    ----
-        channel: The active channel of the RabbitMQ connection.
-        queue_name (str): The name of the queue where the message will be published.
-        minio_path (str): The MinIO path to be published.
-
-    Returns:
-    -------
-        None
-
-    """
-    logging.info(f"Preparing to publish MinIO path to queue: {queue_name}")
-    try:
-        channel.basic_publish(exchange="", routing_key=queue_name, body=minio_path)
-        logging.info(f"Published MinIO path: {minio_path}")
-    except Exception as e:
-        logging.error(f"Failed to publish MinIO path: {e!s}")
-
-
 def publish_message(channel, queue_name, message) -> None:
     """Publish a message to a specified RabbitMQ queue.
 
@@ -145,9 +125,9 @@ def consume_messages(channel, queue_name, callback) -> None:
     ----
         channel: The active channel of the RabbitMQ connection.
         queue_name (str): The name of the queue to consume messages from.
-        callback (function): The callback function to be invoked 
+        callback (function): The callback function to be invoked
                              for each received message.
-                             The function should accept a single argument, 
+                             The function should accept a single argument,
                              which is the message body.
 
     Returns:
@@ -174,51 +154,59 @@ def consume_messages(channel, queue_name, callback) -> None:
     channel.start_consuming()
 
 
+
 def process_feedback_message(body, minio_client, minio_bucket) -> None:
     """Process a feedback message received from RabbitMQ.
 
-    This function extracts the email, JSON MinIO path, and ticket number from the message body.
+    This function extracts the email, annotations MinIO path, and ticket number from the message body.
     It then sends an email using the extracted information and the provided MinIO client and bucket.
 
     Args:
     ----
         body (bytes): The body of the feedback message received from RabbitMQ.
         minio_client (Minio): The MinIO client instance used to interact with MinIO.
-        minio_bucket (str): The name of the MinIO bucket where the JSON file is stored.
+        minio_bucket (str): The name of the MinIO bucket where the annotations file is stored.
 
     Returns:
     -------
         None
 
     """
-    data = json.loads(body)
-    email = data["email"]
-    json_minio_path = data["json_minio_path"]
-    ticket_number = data["ticket_number"]
+    try:
+        # Deserialize and validate the message using FeedbackMessage
+        feedback_message = FeedbackMessage.parse_raw(body.decode())
+    except ValidationError as e:
+        logging.error(f"Message validation error: {e}")
+        return
 
-    json_file_path = f"{json_minio_path}"
-    send_email(email, json_file_path, ticket_number, minio_client, minio_bucket)
+    email = feedback_message.email
+    annotations_minio_path = feedback_message.annotations_minio_path
+    ticket_number = feedback_message.ticket_number
 
+    # Send the email with the MinIO path
+    send_email(email, annotations_minio_path, ticket_number, minio_client, minio_bucket)
 
 async def consume_feedback_messages(
-    rabbitmq_channel, feedback_queue, minio_client, minio_bucket
+    rabbitmq_channel, feedback_queue, minio_client, minio_bucket, stop_event=None
 ) -> None:
     """Consume feedback messages from the specified RabbitMQ queue.
 
-    This function continuously consumes feedback messages 
+    This function continuously consumes feedback messages
     from the specified RabbitMQ queue.
-    For each received message, it processes the message 
+    For each received message, it processes the message
     using the `process_feedback_message` function
-    and acknowledges the message. 
+    and acknowledges the message.
     If no message is available, it waits for 1 second before checking again.
+    If the `stop_event` is set, it stops consuming messages after processing the current message.
 
     Args:
     ----
-        rabbitmq_channel (pika.adapters.blocking_connection.BlockingChannel): 
+        rabbitmq_channel (pika.adapters.blocking_connection.BlockingChannel):
             The RabbitMQ channel used for consuming messages.
         feedback_queue (str): The name of the RabbitMQ queue to consume feedback messages from.
         minio_client (Minio): The MinIO client instance used to interact with MinIO.
         minio_bucket (str): The name of the MinIO bucket where the JSON files are stored.
+        stop_event (asyncio.Event, optional): An event object that can be used to stop consuming messages.
 
     Returns:
     -------
@@ -230,7 +218,7 @@ async def consume_feedback_messages(
         if method_frame:
             process_feedback_message(body, minio_client, minio_bucket)
             rabbitmq_channel.basic_ack(delivery_tag=method_frame.delivery_tag)
+            if stop_event and stop_event.is_set():
+                break
         else:
             await asyncio.sleep(1)  # Wait for 1 second before checking again
-
-

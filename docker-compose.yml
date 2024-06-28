@@ -3,7 +3,7 @@ version: "3.9"
 # Shared set of env variables (secret variables are fetched from `.env` file)
 x-common-env: &common-env
   environment:
-    - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME:-matthieujln}
+    - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME}
 
     - RABBITMQ_HOST=rabbitmq
     - RABBITMQ_PORT=5672
@@ -46,7 +46,7 @@ services:
       - minioserver
     networks:
       - internal
-    command: sh -c "sleep 5 && python3 inference/main.py"
+    command: sh -c "sleep 5 && python3 inference/worker.py"
     restart: always
 
 #============ [BACKING SERVICES] ============#

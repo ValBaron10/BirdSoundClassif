@@ -1,6 +1,8 @@
+############ TESTS ############
+[tool.pytest.ini_options]
+markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]
 
-
-#### 
+#### RUFF LINT / FORMAT ########
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [
@@ -30,10 +32,13 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
+    "src", # REMOVED src 
+    "requirements.txt"
+
 ]
 
 # Same as Black.
-line-length = 88
+line-length = 99
 indent-width = 4
 
 # Assume Python 3.8
@@ -44,7 +49,7 @@ target-version = "py38"
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
 # McCabe complexity (`C901`) by default.
 select = [
-    "D",    # Docstring-related linting rules
+#    "D",    # Docstring-related linting rules
     "E",
     "E4",   # Import error linting rules
     "E7",   # Indentation error linting rules
@@ -102,4 +107,4 @@ docstring-code-line-length = "dynamic"
 # 4. Ignore `E402` (import violations) in all `__init__.py` files, and in select subdirectories.
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402", "D104"]
-"**/{tests,docs,tools}/*" = ["E402"]
+"**/{tests,docs,tools}/*" = ["D103", "E402", "E", "D"] # "RUF501" = lines too long

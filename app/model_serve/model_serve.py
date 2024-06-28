@@ -9,7 +9,11 @@ files, and getting the classification results.
 import logging
 
 from src.models.run_detection_cpu import load_model, run_detection
-from src.visualization.visu import merge_images, visualise_model_out, get_detections_times_and_freqs
+from src.visualization.visu import (
+    get_detections_times_and_freqs,
+    merge_images,
+    visualise_model_out,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,7 +28,7 @@ TEST_FILE_PATH = "inference/Turdus_merlula.wav"
 
 class ModelServer:
     """A class representing a model server for bird sound classification."""
-    
+
     def __init__(self, weights_path, bird_dict) -> None:
         """Initialize the ModelServer instance.
 
@@ -32,7 +36,7 @@ class ModelServer:
         ----
             weights_path (str): The path to the weights for the model.
             bird_dict (dict): A dictionary containing bird names and their corresponding IDs.
-            
+
         """
         self.weights_path = weights_path
         logger.info(f"Weights path: {self.weights_path}")
@@ -109,12 +113,13 @@ class ModelServer:
         }
 
         lines = get_detections_times_and_freqs(output, fp, spectrogram, self.reverse_bird_dict)
-
         logger.info(f"[lines]: \n{lines}")
+        
+        logger.info(f"[SPECTROGRAM]: {spectrogram}")
         if False:
             visualise_model_out(output, fp, spectrogram, self.reverse_bird_dict)
-            # TODO: enregistrer le spectrogram
-        return lines
+        
+        
+        return lines, spectrogram
 
-# TODO ensure bird name is given as output
-# TODO unload model method
+
