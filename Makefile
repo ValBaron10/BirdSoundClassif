@@ -42,6 +42,19 @@ push-all:
 #===================================#
 #       DOCKER COMPOSE
 #===================================#
+
+# Network name
+NETWORK_NAME=external_network
+
+# Create the network if it doesn't exist
+create-network:
+	@if [ -z "$(shell docker network ls --filter name=^$(NETWORK_NAME)$$ --format='{{ .Name }}')" ]; then \
+		echo "Creating network $(NETWORK_NAME)"; \
+		docker network create $(NETWORK_NAME); \
+	else \
+		echo "Network $(NETWORK_NAME) already exists"; \
+	fi
+
 run-api:
 	DOCKERHUB_USERNAME=$(DOCKER_ACCOUNT) docker compose up api
 
@@ -49,6 +62,7 @@ run-inference:
 	DOCKERHUB_USERNAME=$(DOCKER_ACCOUNT) docker compose up inference
 
 run-all:
+	$(MAKE) create-network
 	DOCKERHUB_USERNAME=$(DOCKER_ACCOUNT) docker compose up
 
 shutdown:
