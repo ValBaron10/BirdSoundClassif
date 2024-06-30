@@ -57,6 +57,9 @@ RABBITMQ_HOST = os.getenv("RABBITMQ_HOST")
 RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT", "5672"))
 FORWARDING_QUEUE = os.getenv("RABBITMQ_QUEUE_API2INF")
 FEEDBACK_QUEUE = os.getenv("RABBITMQ_QUEUE_INF2API")
+logger.info(f":[INFERENCE_PROCESS_BATCH_SIZE]: {os.getenv('INFERENCE_PROCESS_BATCH_SIZE')}")
+INFERENCE_PROCESS_BATCH_SIZE = int(os.getenv("INFERENCE_PROCESS_BATCH_SIZE", "10"))
+
 
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT")
 MINIO_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
@@ -73,8 +76,12 @@ minio_client = Minio(
 
 
 #################### QUEUE ####################
+accumulated_messages = []
+
 def callback(body) -> None:
     """Trigger an inference pipeline run as RabbitMQ message callback."""
+    global accumulated_messages
+
     try:
         # Deserialize and validate the message using InferenceMessage
         message = InferenceMessage.parse_raw(body.decode())
@@ -86,13 +93,24 @@ def callback(body) -> None:
         f"Received message from RabbitMQ: MinIO path={message.soundfile_minio_path}, "
         f"Email={message.email}, Ticket number={message.ticket_number}"
     )
-    run_inference_pipeline(
-        message.soundfile_minio_path,
-        message.email,
-        message.ticket_number,
-        message.annotations_minio_path,
-        message.spectrogram_minio_path
-    )
+    # Accumulate messages
+    accumulated_messages.append(message)
+
+    # Process batch if the batch size is reached
+    if len(accumulated_messages) >= INFERENCE_PROCESS_BATCH_SIZE:
+        process_batch(accumulated_messages)
+        accumulated_messages = []  # Reset the list after processing
+
+def process_batch(messages):
+    """Process a batch of messages."""
+    for message in messages:
+        run_inference_pipeline(
+            message.soundfile_minio_path,
+            message.email,
+            message.ticket_number,
+            message.annotations_minio_path,
+            message.spectrogram_minio_path
+        )
 
 #################### ML I/O  ####################
 def run_inference_pipeline(minio_path, email, ticket_number, annotation_path, spectrogram_path) -> None:
@@ -153,10 +171,10 @@ def run_inference_pipeline(minio_path, email, ticket_number, annotation_path, sp
 if __name__ == "__main__":
     rabbitmq_connection = get_rabbit_connection(RABBITMQ_HOST, RABBITMQ_PORT)
     rabbitmq_channel = rabbitmq_connection.channel()
-    rabbitmq_channel.queue_declare(queue=FORWARDING_QUEUE)
+    rabbitmq_channel.queue_declare(queue=FORWARDING_QUEUE, durable=True)
 
     logging.info(f"Declaring queue: {FEEDBACK_QUEUE}")
-    rabbitmq_channel.queue_declare(queue=FEEDBACK_QUEUE)
+    rabbitmq_channel.queue_declare(queue=FEEDBACK_QUEUE, durable=True)
 
     logger.info(f"Waiting for messages from queue: {FORWARDING_QUEUE}")
     consume_messages(rabbitmq_channel, FORWARDING_QUEUE, callback)
