@@ -39,6 +39,22 @@ Consists of two main services: an API service for handling user requests and an 
 git clone https://github.com/ValBaron10/BirdSoundClassif.git
 cd BirdSoundClassif
 ```
+![Alt Text](docs/readme/3.gif)
+![Alt Text](docs/readme/4.gif)
+
+
+### Download trained model and generate development `.env` files
+
+- Using the `Makefile`:
+```bash
+# WITH DEFAULT IMAGE TAG
+make generate-dotenv
+
+# TAGGING IMAGES WITH YOUR OWN DOCKERHUB ACCOUNT:
+make download-model
+
+```
+
 
 ### Build Docker images
 - Using the `Makefile`:
@@ -50,6 +66,8 @@ make build-all
 make build-all DOCKER_ACCOUNT=yourusername
 
 ```
+
+![Alt Text](docs/readme/1.gif)
 
 - Running the build scripts manually:
 ```bash
@@ -104,6 +122,8 @@ make run-all
 make run-all DOCKER_ACCOUNT=yourusername
 
 ```
+![Alt Text](docs/readme/2.gif)
+
 Let this terminal process run and watch for logs in case of dysfunctionments
 Open a new terminal to run the next commands
 
@@ -142,6 +162,7 @@ curl -X 'POST' \
 Congratulations! Your request is making a round trip inside the service, let's see what happens...
 
 ### Access service UIs
+![Alt Text](docs/readme/5.gif)
 
 #### S3 Storage
 When the upload arrives, the wav file is stored in an S3 bucket
