@@ -1,7 +1,15 @@
 .PHONY: build-base build-api build-inference build-all run-api run-inference run-all
 
+
 # Default dockerhub account
 DOCKER_ACCOUNT ?= matthieujln
+
+#===================================#
+#       ENV VARIABLES
+#===================================#
+generate-dotenv:
+	cp .env.example .env
+
 
 #===================================#
 #       BUILD DOCKER IMAGES
@@ -61,8 +69,7 @@ run-api:
 run-inference:
 	DOCKERHUB_USERNAME=$(DOCKER_ACCOUNT) docker compose up inference
 
-run-all:
-	$(MAKE) create-network
+run-all: create-network
 	DOCKERHUB_USERNAME=$(DOCKER_ACCOUNT) docker compose up
 
 shutdown:
