@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.sql.expression import insert
 from sqlalchemy import insert
 
 from api.models import Bird, InferenceResult, ServiceCall
@@ -9,8 +10,17 @@ BIRD_DICT = {"Grus grus": 1, "Haematopus ostralegus": 2, "Anthus trivialis": 3, 
 
 async def populate_bird_table(session: AsyncSession):
     for bird_name, bird_id in BIRD_DICT.items():
-        stmt = insert(Bird).values(id=bird_id, name=bird_name)
-        await session.execute(stmt)
+        # Check if the bird already exists in the database
+        select_stmt = select(Bird).where(Bird.id == bird_id)
+        result = await session.execute(select_stmt)
+        bird = result.scalar_one_or_none()
+
+        # If the bird does not exist, insert it
+        if bird is None:
+            insert_stmt = insert(Bird).values(id=bird_id, name=bird_name)
+            await session.execute(insert_stmt)
+
+    # Commit the transaction
     await session.commit()
     
 
