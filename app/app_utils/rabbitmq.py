@@ -111,7 +111,12 @@ def publish_message(channel, queue_name, message) -> None:
     logging.info(f"Preparing to publish message to queue: {queue_name}")
     try:
         channel.basic_publish(
-            exchange="", routing_key=queue_name, body=json.dumps(message)
+            exchange="",
+            routing_key=queue_name,
+            body=json.dumps(message),
+            properties=pika.BasicProperties(
+                delivery_mode=2,  # Make message persistent
+            ),
         )
         logging.info(f"Published message: {message}")
     except Exception as e:

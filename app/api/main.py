@@ -54,11 +54,11 @@ def initialize_clients():
     rabbitmq_channel = rabbitmq_connection.channel()
 
     logging.info(f"Declaring queue: {config.FORWARDING_QUEUE}")
-    rabbitmq_channel.queue_declare(queue=config.FORWARDING_QUEUE)
+    rabbitmq_channel.queue_declare(queue=config.FORWARDING_QUEUE, durable=True)
 
     #======# FEEDBACK QUEUE #======#
     logging.info(f"Declaring queue: {config.FEEDBACK_QUEUE}")
-    rabbitmq_channel.queue_declare(queue=config.FEEDBACK_QUEUE)
+    rabbitmq_channel.queue_declare(queue=config.FEEDBACK_QUEUE, durable=True)
 
 
 @app.on_event("startup")
