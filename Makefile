@@ -12,6 +12,25 @@ generate-dotenv:
 
 
 #===================================#
+#       TRAINED PT MODEL
+#===================================#
+
+FILE_URL=https://www.dropbox.com/scl/fi/gx8mal2itlricdbhni75b/detr_noneg_100q_bs20_r50dc5.tar?rlkey=xv44e8bw6bbmj2gveif448gio&st=uz5uf4v0&dl=1
+FILE_NAME=detr_noneg_100q_bs20_r50dc5.tar
+TARGET_DIR=models
+ARCHIVE_DIR=detr_noneg_100q_bs20_r50dc5
+
+download-model:
+	@echo "Downloading file from Dropbox..."
+	@wget -O $(FILE_NAME) '$(FILE_URL)'
+	@echo "Extracting the archive..."
+	@mkdir -p $(TARGET_DIR)/$(ARCHIVE_DIR)
+	@tar -xf $(FILE_NAME) -C $(TARGET_DIR)/$(ARCHIVE_DIR)
+	@rm $(FILE_NAME)
+	@echo "Download and extraction complete."
+
+
+#===================================#
 #       BUILD DOCKER IMAGES
 #===================================#
 build-base:
