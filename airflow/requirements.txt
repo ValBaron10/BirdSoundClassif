@@ -1,0 +1,4 @@
+apache-airflow==2.9.2
+torch>=1.10.0
+torchvision>=0.11.1
+torchaudio>=0.10.0
