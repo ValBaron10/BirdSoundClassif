@@ -1,0 +1,53 @@
+# Notre configuration globale
+global:
+  scrape_interval: 15s # Par défaut, scrape les cibles toutes les 15 secondes.
+  evaluation_interval: 15s # Par défaut, scrape les cibles toutes les 15 secondes.
+  # scrape_timeout est défini sur la valeur globale par défaut (10 s).
+
+  # Attachez ces étiquettes à toute série chronologique ou alerte lorsque vous communiquez avec
+  # systèmes externes (fédération, stockage distant, Alertmanager).
+  external_labels:
+    monitor: "my-project"
+
+# Charger et évaluer les règles dans ce fichier toutes les 'evaluation_interval' secondes.
+rule_files:
+  - "alert.rules"
+  # - "first.rules"
+  # - "second.rules"
+
+# alert
+alerting:
+  alertmanagers:
+    - scheme: http
+      static_configs:
+        - targets:
+            - "alertmanager:9093"
+
+# Une configuration de scrape contenant exactement un endpoint à scraper :
+# Ici, c'est Prometheus lui-même.
+scrape_configs:
+  # Le nom de la tâche est ajouté en tant qu'étiquette `job=<job_name>` à toutes les séries temporelles extraites de cette configuration.
+
+  - job_name: "prometheus"
+
+    # Remplace la valeur globale par défaut et récupére les cibles de cette tâche toutes les 15 secondes.
+    scrape_interval: 15s
+
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "cadvisor"
+
+    # Remplacez la valeur globale par défaut et récupérez les cibles de cette tâche toutes les 5 secondes.
+    scrape_interval: 15s
+
+    static_configs:
+      - targets: ["cadvisor:8081"]
+
+  - job_name: "node-exporter"
+
+    # Remplacez la valeur globale par défaut et récupérez les cibles de cette tâche toutes les 5 secondes.
+    scrape_interval: 15s
+
+    static_configs:
+      - targets: ["node-exporter:9100"]

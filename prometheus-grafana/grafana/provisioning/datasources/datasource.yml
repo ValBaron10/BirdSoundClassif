@@ -1,0 +1,49 @@
+# version du fichier de configuration
+apiVersion: 1
+
+# liste des sources de données qui doivent être supprimées de la base de données
+deleteDatasources:
+  - name: Prometheus
+    orgId: 1
+
+# liste des sources de données à insérer/mettre à jour en fonction de ce qui est disponible dans la base de données
+datasources:
+  # <string, required> nom de la source de données. Requis
+  - name: Prometheus
+    # <string, required> type de source de données. Requis
+    type: prometheus
+    # <string, required> Mode d'accès. directe ou par procuration. Requis
+    access: proxy
+    # <int> identifiant de l'organisation. sera par défaut à orgId 1 s'il n'est pas spécifié
+    orgId: 1
+    # <string> url a utiliser , on pointe sur prometheus avec le nom du service défini dans le fichier docker-compose.yml
+    url: http://prometheus:9090
+    # <string> mot de passe de la base de données, si utilisé
+    password:
+    # <string> utilisateur de la base de données, si utilisé
+    user:
+    # <string> nom de la base de données, si utilisé
+    database:
+    # <bool> activer/désactiver l'authentification de base
+    basicAuth: false
+    # <string> nom d'utilisateur d'authentification de base, s'il est utilisé
+    basicAuthUser:
+    # <string>mot de passe d'authentification de base, si utilisé
+    basicAuthPassword:
+    # <bool> activer/désactiver avec les en-têtes d'informations d'identification
+    withCredentials:
+    # <bool> marquer comme source de données par défaut. Un maximum par organisation
+    isDefault: true
+    # <map> champs qui seront convertis en json et stockés dans json_data
+    jsonData:
+      graphiteVersion: "1.1"
+      tlsAuth: false
+      tlsAuthWithCACert: false
+    # <string> objet json des données qui seront chiffrées.
+    secureJsonData:
+      tlsCACert: "..."
+      tlsClientCert: "..."
+      tlsClientKey: "..."
+    version: 1
+    # <bool> permettre aux utilisateurs de modifier les sources de données à partir de l'interface utilisateur.
+    editable: true

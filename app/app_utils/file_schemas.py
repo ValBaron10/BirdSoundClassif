@@ -11,11 +11,11 @@ class UploadRecord(BaseModel):
     file: UploadFile
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
-    @field_validator('file')
-    def validate_file(cls, v):
-        if v.content_type not in ["audio/wav"]:
-            raise ValueError("Le fichier doit être un fichier audio .wav ou .mp3")
-        return v
+    # @field_validator('file')
+    # def validate_file(cls, v):
+    #     if v.content_type not in ["audio/wav"]:
+    #         raise ValueError("Le fichier doit être un fichier audio .wav ou .mp3")
+    #     return v
 
     def generate_filename(self) -> str:
         """Generate a filename based on filetype and timestamp."""

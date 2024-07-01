@@ -1,0 +1,2 @@
+GF_SECURITY_ADMIN_PASSWORD=Datascientest2023@! # définition du mot de passe de l'utilisateur "admin"
+GF_USERS_ALLOW_SIGN_UP=false # interdiction aux utilisateurs de s'inscrire
