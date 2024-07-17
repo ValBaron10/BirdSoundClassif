@@ -17,6 +17,7 @@ from app_utils.amqp_schemas import FeedbackMessage
 from app_utils.minio import fetch_file_contents_from_minio
 from app_utils.smtplib import send_email
 
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
@@ -110,7 +111,12 @@ def publish_message(channel, queue_name, message) -> None:
     logging.info(f"Preparing to publish message to queue: {queue_name}")
     try:
         channel.basic_publish(
-            exchange="", routing_key=queue_name, body=json.dumps(message)
+            exchange="",
+            routing_key=queue_name,
+            body=json.dumps(message),
+            properties=pika.BasicProperties(
+                delivery_mode=2,  # Make message persistent
+            ),
         )
         logging.info(f"Published message: {message}")
     except Exception as e:
@@ -155,7 +161,7 @@ def consume_messages(channel, queue_name, callback) -> None:
 
 
 
-def process_feedback_message(body, minio_client, minio_bucket) -> None:
+async def process_feedback_message(body, minio_client, minio_bucket) -> None:
     """Process a feedback message received from RabbitMQ.
 
     This function extracts the email, annotations MinIO path, and ticket number from the message body.
@@ -172,8 +178,9 @@ def process_feedback_message(body, minio_client, minio_bucket) -> None:
         None
 
     """
+    from api import crud
+    from api.database import get_async_session
     try:
-        # Deserialize and validate the message using FeedbackMessage
         feedback_message = FeedbackMessage.parse_raw(body.decode())
     except ValidationError as e:
         logging.error(f"Message validation error: {e}")
@@ -182,10 +189,24 @@ def process_feedback_message(body, minio_client, minio_bucket) -> None:
     email = feedback_message.email
     annotations_minio_path = feedback_message.annotations_minio_path
     ticket_number = feedback_message.ticket_number
+    soundfile_minio_path = feedback_message.soundfile_minio_path
+    spectrogram_minio_path = feedback_message.spectrogram_minio_path
+    classification_score = feedback_message.classification_score
 
-    # Send the email with the MinIO path
+    async for session in get_async_session():
+        service_call = await crud.create_service_call(
+            session, email, ticket_number, soundfile_minio_path
+        )
+        await crud.create_inference_result(
+            session, 
+            service_call.id, 
+            annotations_minio_path, 
+            spectrogram_minio_path, 
+            classification_score
+        )
+
     send_email(email, annotations_minio_path, ticket_number, minio_client, minio_bucket)
-
+    
 async def consume_feedback_messages(
     rabbitmq_channel, feedback_queue, minio_client, minio_bucket, stop_event=None
 ) -> None:
@@ -216,7 +237,7 @@ async def consume_feedback_messages(
     while True:
         method_frame, _, body = rabbitmq_channel.basic_get(queue=feedback_queue)
         if method_frame:
-            process_feedback_message(body, minio_client, minio_bucket)
+            await process_feedback_message(body, minio_client, minio_bucket)  # Await the coroutine
             rabbitmq_channel.basic_ack(delivery_tag=method_frame.delivery_tag)
             if stop_event and stop_event.is_set():
                 break

@@ -1,30 +1,31 @@
 version: "3.9"
 
-# Shared set of env variables (secret variables are fetched from `.env` file)
 x-common-env: &common-env
   environment:
     - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME}
-
     - RABBITMQ_HOST=rabbitmq
     - RABBITMQ_PORT=5672
     - RABBITMQ_QUEUE_API2INF=api_to_inference
     - RABBITMQ_QUEUE_INF2API=inference_to_api
     - RABBITMQ_LOGS="-"
     - RABBITMQ_LOG_LEVEL=info
-    - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}  # .env
-    - RABBITMQ_DEFAULT_PASSWORD=${RABBITMQ_DEFAULT_PASSWORD} # .env
-
+    - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+    - RABBITMQ_DEFAULT_PASSWORD=${RABBITMQ_DEFAULT_PASSWORD}
+    - INFERENCE_PROCESS_BATCH_SIZE=5
     - MINIO_ENDPOINT=minioserver:9000
-    - MINIO_BUCKET=mediae # hardcoded for dev purposes, #TODO: get foldernames from usernames
+    - MINIO_BUCKET=mediae
     - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
     - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
     - MINIO_ROOT_USER=${MINIO_ROOT_USER}
     - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
-
+    - POSTGRES_USER=${POSTGRES_USER}
+    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    - POSTGRES_HOST=${POSTGRES_HOST}
+    - POSTGRES_PORT=${POSTGRES_PORT}
+    - POSTGRES_DB=${POSTGRES_DB}
     - MH_LOG_LEVEL=error
 
 services:
-#============ [MAIN SERVICES] ============#
   api:
     <<: *common-env
     image: ${DOCKERHUB_USERNAME}/bird-sound-classif:api
@@ -35,6 +36,7 @@ services:
       - minioserver
     networks:
       - internal
+      - external_network
     command: sh -c "sleep 5 && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
     restart: always
 
@@ -49,9 +51,22 @@ services:
     command: sh -c "sleep 5 && python3 inference/worker.py"
     restart: always
 
-#============ [BACKING SERVICES] ============#
+  postgres:
+    <<: *common-env
+    image: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - internal
+    ports:
+      - "5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   rabbitmq:
-    # RabbitMQ: container to container async messenger
     <<: *common-env
     image: rabbitmq:3.9.7-management
     ports:
@@ -67,7 +82,6 @@ services:
     restart: always
 
   minioserver:
-    # MinIO: Lightweight AWS S3 local file storage
     <<: *common-env
     image: minio/minio
     ports:
@@ -76,7 +90,7 @@ services:
     container_name: minio
     command: server /data --console-address ":9001"
     volumes:
-      - ./docker/minio/minio_entrypoint.sh:/minio_entrypoint.sh # Init script
+      - ./docker/minio/minio_entrypoint.sh:/minio_entrypoint.sh
       - minio-data:/data
     networks:
       - internal
@@ -84,21 +98,36 @@ services:
     restart: always
 
   mailhog:
-    # Mailhog: Email testing tool for development
     <<: *common-env
     image: mailhog/mailhog
     ports:
-      - "1025:1025"  # SMTP port
-      - "8025:8025"  # Web UI port
+      - "1025:1025"
+      - "8025:8025"
     networks:
       - internal
     restart: always
 
+  pgadmin:
+    image: dpage/pgadmin4
+    volumes:
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json
+    ports:
+      - "15051:80"
+    depends_on:
+      - postgres
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: password
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    networks:
+      - internal
 
-#============ [VOLUMES / NETWORKS] ============#
 volumes:
   minio-data:
+  postgres-data:
 
 networks:
   internal:
     driver: bridge
+  external_network:
+    external: true
